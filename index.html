@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <title>New Monday · Proyectos</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <aside class="sidebar" aria-label="Navegación principal">
+    <div class="brand"><span class="brand-mark">M</span><span>New Monday</span></div>
+    <div class="workspace-card">
+      <div class="workspace-icon" id="workspace-icon">PR</div>
+      <div><strong id="workspace-name">Proyectos</strong><small>Proyecto activo</small></div>
+      <button class="icon-button" title="Opciones">•••</button>
+    </div>
+    <label class="sidebar-search"><span>⌕</span><input id="board-search" type="search" placeholder="Buscar" aria-label="Buscar tableros"></label>
+    <nav id="sidebar-nav" class="sidebar-nav"></nav>
+    <div class="sidebar-footer"><span class="avatar">AB</span><span>Anuska Baute</span></div>
+  </aside>
+
+  <main class="main">
+    <header class="board-header">
+      <div>
+        <div class="board-title-row"><h1 id="board-title">Cargando…</h1><button class="star-button" title="Favorito">☆</button></div>
+        <p id="board-subtitle">Gestión de producción y postproducción</p>
+      </div>
+      <div class="header-actions">
+        <button class="button ghost" id="btn-filter" title="Buscar">⌕ Buscar</button>
+        <button class="button primary" id="btn-add">＋ Nuevo elemento</button>
+      </div>
+    </header>
+
+    <div class="view-tabs" role="tablist">
+      <button class="view-tab active" data-view="board">Tabla principal</button>
+      <button class="view-tab" data-view="gantt">Cronograma</button>
+      <button class="view-tab" data-view="crew">Equipo</button>
+    </div>
+
+    <section id="content" class="content" aria-live="polite">
+      <div class="loading"><span class="spinner"></span>Cargando datos…</div>
+    </section>
+  </main>
+
+  <div id="modal-root"></div>
+  <div id="toast-root" aria-live="polite"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
