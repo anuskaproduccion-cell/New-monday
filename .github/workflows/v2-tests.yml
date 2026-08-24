@@ -31,11 +31,13 @@ jobs:
           node --check routes/items.js
           node --check routes/itemOrdering.js
           node --check routes/mondayImport.js
+          node --check routes/backups.js
           node --check services/mondayReadOnlyClient.js
           node --check services/mondayNormalizer.js
           node --check services/mondayStagingImporter.js
           node --check services/stagingFingerprint.js
           node --check services/stagingPromotion.js
+          node --check services/excelBackup.js
           node --check services/dependencyEngine.js
           node --check services/formulaEngine.js
           node --check public/js/app-v2.js
