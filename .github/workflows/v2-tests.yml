@@ -1,0 +1,32 @@
+name: New Monday v2 validation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [agent/monday-engine-v2]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm install
+      - run: npm test
+      - name: Syntax checks
+        run: |
+          node --check server.js
+          node --check models/Workspace.js
+          node --check models/Board.js
+          node --check models/Item.js
+          node --check routes/workspaces.js
+          node --check routes/boards.js
+          node --check routes/items.js
+          node --check routes/mondayImport.js
+          node --check services/mondayReadOnlyClient.js
+          node --check services/dependencyEngine.js
+          node --check services/formulaEngine.js
