@@ -31,12 +31,14 @@ const boardsRouter = require('./routes/boards');
 const itemsRouter = require('./routes/items');
 const crewRouter = require('./routes/crew');
 const seedRouter = require('./routes/seed');
+const mondayImportRouter = require('./routes/mondayImport');
 
 app.use('/api/workspaces', workspacesRouter);
 app.use('/api/boards', boardsRouter);
 app.use('/api/items', itemsRouter);
 app.use('/api/crew', crewRouter);
 app.use('/api/seed', seedRouter);
+app.use('/api/import/monday', mondayImportRouter);
 
 app.get('/api/health', (req, res) => {
   const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
