@@ -25,9 +25,11 @@ jobs:
           node --check routes/workspaces.js
           node --check routes/boards.js
           node --check routes/items.js
+          node --check routes/itemOrdering.js
           node --check routes/mondayImport.js
           node --check services/mondayReadOnlyClient.js
           node --check services/mondayNormalizer.js
           node --check services/dependencyEngine.js
           node --check services/formulaEngine.js
           node --check public/js/app-v2.js
+          node --check public/js/app-v2-dnd.js
