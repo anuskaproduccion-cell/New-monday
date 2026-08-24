@@ -27,6 +27,8 @@ jobs:
           node --check models/StagingBoard.js
           node --check models/StagingItem.js
           node --check models/ExcelRecoveryRun.js
+          node --check models/ActivityEvent.js
+          node --check models/ItemUpdate.js
           node --check routes/workspaces.js
           node --check routes/views.js
           node --check routes/boards.js
@@ -34,6 +36,8 @@ jobs:
           node --check routes/itemOrdering.js
           node --check routes/mondayImport.js
           node --check routes/backups.js
+          node --check routes/updates.js
+          node --check routes/activity.js
           node --check services/mondayReadOnlyClient.js
           node --check services/mondayNormalizer.js
           node --check services/mondayStagingImporter.js
@@ -42,6 +46,7 @@ jobs:
           node --check services/excelBackup.js
           node --check services/excelRecovery.js
           node --check services/driveBackup.js
+          node --check services/activityLogger.js
           node --check services/dependencyEngine.js
           node --check services/formulaEngine.js
           node --check scripts/syncBackupToDrive.js
@@ -49,3 +54,6 @@ jobs:
           node --check public/js/app-v2-dnd.js
           node --check public/js/app-v2-backup.js
           node --check public/js/app-v2-query.js
+          node --check public/js/app-v2-updates.js
+          node --check public/js/app-v2-lifecycle.js
+          node --check public/js/app-v2-keyboard.js
