@@ -1,4 +1,6 @@
 const assert = require('assert');
+const StagingBoard = require('../models/StagingBoard');
+const Board = require('../models/Board');
 const {
   normalizedBoardMetadata,
   stagedParentItem,
@@ -18,6 +20,23 @@ assert.strictEqual(boardMeta.mondayId, '5097244458');
 assert.strictEqual(boardMeta.workspaceMondayId, '123');
 assert.strictEqual(boardMeta.columns[0].settings.labels['1'], 'Done');
 assert.strictEqual(boardMeta.internal, false);
+
+const mirrorMeta = normalizedBoardMetadata({
+  id: '5097244455',
+  name: 'GY_EDITING ASSISTANCE',
+  workspace: { id: '6553907', name: 'GY_GUAYOTA' },
+  groups: [],
+  columns: [{
+    id: 'lookup_mm3m68yc',
+    title: 'Material Disponible',
+    type: 'mirror',
+    settings_str: '{"relation_column":{"board_relation_mm3mwnpf":true},"displayed_column":{},"displayed_linked_columns":{"5097244456":["color_mm3kdvtp"]},"sumType":"allStatuses"}'
+  }],
+  views: []
+}, runId);
+assert.deepStrictEqual(mirrorMeta.columns[0].settings.displayed_column, {});
+assert.strictEqual(StagingBoard.schema.get('minimize'), false);
+assert.strictEqual(Board.schema.get('minimize'), false);
 
 const parent = {
   id: '2941818198',
