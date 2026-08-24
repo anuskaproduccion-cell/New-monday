@@ -142,6 +142,36 @@ async function getBoardSnapshot(mondayBoardId) {
                 }
                 ... on FormulaValue { display_value }
                 ... on MirrorValue { display_value }
+                ... on FileValue {
+                  files {
+                    ... on FileAssetValue {
+                      asset_id
+                      name
+                      is_image
+                      created_at
+                      asset {
+                        id
+                        name
+                        file_extension
+                        file_size
+                        url
+                      }
+                    }
+                    ... on FileLinkValue {
+                      file_id
+                      name
+                      url
+                      kind
+                      created_at
+                    }
+                    ... on FileDocValue {
+                      file_id
+                      object_id
+                      url
+                      created_at
+                    }
+                  }
+                }
               }
               subitems {
                 id
@@ -161,6 +191,36 @@ async function getBoardSnapshot(mondayBoardId) {
                   }
                   ... on FormulaValue { display_value }
                   ... on MirrorValue { display_value }
+                  ... on FileValue {
+                    files {
+                      ... on FileAssetValue {
+                        asset_id
+                        name
+                        is_image
+                        created_at
+                        asset {
+                          id
+                          name
+                          file_extension
+                          file_size
+                          url
+                        }
+                      }
+                      ... on FileLinkValue {
+                        file_id
+                        name
+                        url
+                        kind
+                        created_at
+                      }
+                      ... on FileDocValue {
+                        file_id
+                        object_id
+                        url
+                        created_at
+                      }
+                    }
+                  }
                 }
               }
             }
