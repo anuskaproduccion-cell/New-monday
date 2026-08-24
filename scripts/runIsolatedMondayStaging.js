@@ -11,6 +11,8 @@ const BASELINE = Object.freeze({
   subitems: 413
 });
 
+const STAGING_THROTTLED_EXIT_CODE = 75;
+
 function databaseNameFromMongoUri(uri) {
   try {
     const parsed = new URL(uri);
@@ -71,6 +73,15 @@ function baselineDiff(sourceCounts = {}) {
   return differences;
 }
 
+function isRateLimitError(error) {
+  const message = String(error?.message || error || '');
+  return /(?:HTTP\s*429|RATE[_ -]?LIMIT|rate\s+limit|throttl|COMPLEXITY_BUDGET)/i.test(message);
+}
+
+function exitCodeForStagingError(error) {
+  return isRateLimitError(error) ? STAGING_THROTTLED_EXIT_CODE : 1;
+}
+
 async function runIsolatedStaging(env = process.env) {
   const { stagingUri, databaseName } = assertIsolatedStagingEnvironment(env);
   await mongoose.connect(stagingUri);
@@ -126,17 +137,32 @@ async function main() {
 
 if (require.main === module) {
   main().catch(error => {
-    console.error('Isolated STAGING failed:', error.message);
-    process.exitCode = 1;
+    const throttled = isRateLimitError(error);
+    if (throttled) {
+      console.warn('Isolated STAGING paused by Monday read throttling:', error.message);
+      console.log(JSON.stringify({
+        phase: 'throttled',
+        mondayReadOnly: true,
+        mondayMutations: 0,
+        productionWrites: 0,
+        retryRequired: true
+      }));
+    } else {
+      console.error('Isolated STAGING failed:', error.message);
+    }
+    process.exitCode = exitCodeForStagingError(error);
   });
 }
 
 module.exports = {
   BASELINE,
+  STAGING_THROTTLED_EXIT_CODE,
   databaseNameFromMongoUri,
   normalizedMongoTarget,
   assertIsolatedStagingEnvironment,
   baselineDiff,
+  isRateLimitError,
+  exitCodeForStagingError,
   runIsolatedStaging,
   main
 };
