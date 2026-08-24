@@ -23,6 +23,8 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 - Motor local para las fórmulas reales observadas.
 - Normalización de datos leídos desde Monday.
 - Lectura paginada de tableros grandes.
+- Historial local `ActivityEvent` para registrar cambios hechos dentro de New Monday.
+- Actualizaciones/comentarios por item con respuestas, almacenados únicamente en New Monday.
 
 ### Frontend dinámico
 
@@ -42,6 +44,11 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 - Filtros y orden temporales en Tabla/Cronograma.
 - Persistencia de filtros y multi-sort en vistas guardadas.
 - Crear, renombrar, duplicar y eliminar vistas guardadas sin afectar los items del tablero.
+- Panel de `Actualizaciones y actividad` por elemento, con publicaciones y respuestas.
+- Vista `Actividad` del tablero con historial de acciones locales.
+- Vistas dedicadas `Archivo` y `Papelera`, ambas con restauración.
+- Navegación de celdas con flechas y Enter.
+- Copiar/pegar celdas con el portapapeles para tipos escalares soportados; columnas calculadas/relacionales quedan protegidas.
 - Botones `Respaldo Excel` y `Recuperar Excel`.
 
 ### Migración segura desde Monday
@@ -87,16 +94,15 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 - Configurar una cuenta de servicio de Google, compartir con ella la carpeta `NEW MONDAY` y verificar la primera copia real en Drive.
 - Crear el Cron Job de Render después de validar manualmente la sincronización.
 - Resolver edición segura de columnas relacionales en recuperación si se decide soportarla.
-- Completar Updates/comentarios e historial local.
-- Completar copiar/pegar y navegación de teclado.
+- Ampliar historial local para cubrir todas las operaciones de grupos/columnas y cambios masivos.
 - Completar creación/configuración avanzada de columnas.
 - Añadir reordenación visual de pestañas/vistas y más tipos de vista.
-- Añadir Trash/Archive UI dedicada.
+- Ampliar copiar/pegar a rangos de varias celdas y filas completas.
 - Hacer pruebas funcionales de navegador y auditoría visual final frente a Monday, siempre en modo consulta.
 
 ## Estado de validación
 
-GitHub Actions ejecuta `npm test` y validaciones de sintaxis del backend, servicios, scripts y frontend v2. Los tests de Excel, recuperación y sincronización Drive están incluidos en CI. El bloque de filtros, multi-sort y vistas guardadas también pasa las comprobaciones de sintaxis del workflow.
+GitHub Actions ejecuta `npm test` y validaciones de sintaxis del backend, servicios, scripts y frontend v2. Los tests de Excel, recuperación y sincronización Drive están incluidos en CI. El bloque de actualizaciones, actividad, Archivo/Papelera y navegación/copia de celdas también ha pasado el workflow de validación.
 
 ## Producción
 
