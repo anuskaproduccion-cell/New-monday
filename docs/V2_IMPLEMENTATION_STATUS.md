@@ -26,6 +26,7 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 - Historial local `ActivityEvent` para registrar cambios hechos dentro de New Monday.
 - Historial de creación, edición, duplicación y reordenación de grupos y columnas, además de cambios de tablero e items.
 - Actualizaciones/comentarios por item con respuestas, almacenados únicamente en New Monday.
+- Acciones masivas locales para mover elementos, cambiar Estado, archivar y enviar a Papelera, con historial por elemento y sin borrado físico.
 
 ### Frontend dinámico
 
@@ -35,10 +36,11 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 - Render y edición para People, Status, Timeline, Date, Formula, Dependency, World Clock, Dropdown, Email, Link, Numbers y Text.
 - Render de File, Board Relation, Mirror y Subtasks.
 - Menús de elemento, grupo y columna.
-- Selección múltiple.
+- Selección múltiple y barra de acciones masivas.
+- Mover varios elementos a un grupo y cambiar Estado de varios elementos en una sola operación.
 - Drag & drop de items, grupos y columnas.
 - Gantt dinámico con movimiento y resize conectado al motor de dependencias.
-- Pestañas de vistas.
+- Pestañas de vistas y reordenación visual de vistas guardadas por drag & drop o Alt+←/→.
 - Filtros por múltiples condiciones sobre Elemento, Grupo y columnas dinámicas.
 - Operadores contiene/no contiene, igual/distinto, vacío/no vacío, mayor/menor y antes/después.
 - Multi-sort con prioridad de criterios.
@@ -85,6 +87,11 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 - Línea base obligatoria: 17 workspaces, 103 tableros, 55 visibles, 48 internos, 1.230 items y 413 subitems.
 - GitHub Actions tiene un preflight que solo informa si los secretos existen y nunca imprime sus valores.
 - La ejecución STAGING real desde CI está bloqueada salvo un push explícito cuyo mensaje incluya `[run-staging]`; ese paso no promociona datos y solo ejecuta el runner aislado.
+- `MONGODB_STAGING_URI` apunta a la base aislada `new-monday-staging` y `MONDAY_API_TOKEN` está configurado como secreto de GitHub Actions.
+- Primera importación STAGING real: 17 / 103 / 55 / 48 / 1.230 / 413, con 55/55 fingerprints de datos correctos.
+- La primera auditoría detectó 9 discrepancias de esquema en tableros EDITING ASSISTANCE causadas por la eliminación de `displayed_column: {}` en Mirror durante la normalización de Mongoose; el modelo se corrigió y se añadió una prueba específica.
+- Un reintento posterior recibió HTTP 429 de Monday antes de leer el inventario. El cliente solo realizó consultas read-only, no hubo mutaciones y no se tocó producción.
+- El cliente read-only respeta `Retry-After`, reintenta fallos transitorios/429/5xx y mantiene un límite seguro de espera para CI.
 - Guía operativa en `docs/STAGING_EXECUTION_RUNBOOK.md`.
 
 ### Excel de emergencia y recuperación
@@ -102,6 +109,9 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 - Aplicación transaccional en MongoDB.
 - Recálculo de fórmulas locales tras recuperación.
 - Formula, Mirror, File, Dependency y Board Relation se conservan pero son de solo lectura en la recuperación manual por ahora.
+- Smoke real Excel → editar offline → preview → apply sobre `new-monday-staging`: PASS.
+- Creación offline de item y subitem, vínculo al padre, ARCHIVAR, PAPELERA, protección de Fórmula y protección frente a cambio concurrente: PASS.
+- Cleanup de todos los registros temporales del smoke: PASS.
 
 ### Google Drive
 
@@ -115,20 +125,16 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 
 ## Pendiente antes de promover a `main`
 
-- Configurar de forma segura, fuera del chat, `MONGODB_STAGING_URI` y `MONDAY_API_TOKEN` para la ejecución aislada. El preflight de GitHub Actions del 2026-08-24 confirmó que actualmente ambos secretos están ausentes del repositorio; `MONGODB_URI` también está ausente allí.
-- Ejecutar una importación STAGING real y revisar la auditoría completa.
-- Probar una recuperación completa Excel → preview → apply contra una base MongoDB de prueba.
+- Repetir STAGING cuando Monday deje de devolver 429 y exigir 103/103 fingerprints de esquema + 55/55 de datos.
 - Configurar una cuenta de servicio de Google, compartir con ella la carpeta `NEW MONDAY` y verificar la primera copia real en Drive.
 - Crear el Cron Job de Render después de validar manualmente la sincronización.
 - Resolver edición segura de columnas relacionales en recuperación Excel si se decide soportarla.
-- Completar historial para algunas acciones masivas y operaciones especiales.
-- Añadir reordenación visual de pestañas/vistas y más tipos de vista.
-- Añadir soporte de modo de dependencia `flexible` si aparece en los tableros operativos que realmente se usen.
-- Hacer pruebas funcionales de navegador y auditoría visual final frente a Monday, siempre en modo consulta.
+- Completar pruebas funcionales de navegador y auditoría visual final frente a Monday, siempre en modo consulta.
+- Completar algunas acciones masivas adicionales y más tipos de vista solo cuando aporten paridad operativa real.
 
 ## Estado de validación
 
-GitHub Actions ejecuta `npm test` y validaciones de sintaxis del backend, servicios, scripts y frontend v2. Los tests de Excel, recuperación, sincronización Drive y guardas de STAGING están incluidos en CI. La gestión avanzada de columnas, el pegado/copia de rangos, la selección rectangular, el historial de grupos/columnas y el módulo relacional/calculado forman parte del workflow.
+GitHub Actions ejecuta `npm test` y validaciones de sintaxis del backend, servicios, scripts y frontend v2. Los tests de Excel, recuperación, sincronización Drive, guardas de STAGING, fingerprints y cliente Monday read-only están incluidos en CI. La gestión avanzada de columnas, el pegado/copia de rangos, la selección rectangular, las vistas reordenables, el historial, las acciones masivas y el módulo relacional/calculado forman parte del workflow.
 
 ## Producción
 
