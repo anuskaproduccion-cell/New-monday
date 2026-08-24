@@ -33,6 +33,7 @@ const itemOrderingRouter = require('./routes/itemOrdering');
 const crewRouter = require('./routes/crew');
 const seedRouter = require('./routes/seed');
 const mondayImportRouter = require('./routes/mondayImport');
+const backupsRouter = require('./routes/backups');
 
 app.use('/api/workspaces', workspacesRouter);
 app.use('/api/boards', boardsRouter);
@@ -41,6 +42,7 @@ app.use('/api/item-ordering', itemOrderingRouter);
 app.use('/api/crew', crewRouter);
 app.use('/api/seed', seedRouter);
 app.use('/api/import/monday', mondayImportRouter);
+app.use('/api/backups', backupsRouter);
 
 app.get('/api/health', (req, res) => {
   const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
