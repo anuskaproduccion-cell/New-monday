@@ -61,3 +61,13 @@ jobs:
           node --check public/js/app-v2-relational.js
           node --check public/js/app-v2-keyboard.js
           node --check public/js/app-v2-range.js
+      - name: STAGING secret availability preflight
+        env:
+          STAGING_URI: ${{ secrets.MONGODB_STAGING_URI }}
+          MONDAY_TOKEN: ${{ secrets.MONDAY_API_TOKEN }}
+          PRODUCTION_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          if [ -n "$STAGING_URI" ]; then echo "MONGODB_STAGING_URI_CONFIGURED=true"; else echo "MONGODB_STAGING_URI_CONFIGURED=false"; fi
+          if [ -n "$MONDAY_TOKEN" ]; then echo "MONDAY_API_TOKEN_CONFIGURED=true"; else echo "MONDAY_API_TOKEN_CONFIGURED=false"; fi
+          if [ -n "$PRODUCTION_URI" ]; then echo "MONGODB_URI_CONFIGURED=true"; else echo "MONGODB_URI_CONFIGURED=false"; fi
+          echo "No secret values are printed by this preflight."
