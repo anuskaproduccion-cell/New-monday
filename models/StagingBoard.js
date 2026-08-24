@@ -15,6 +15,8 @@ const stagingBoardSchema = new mongoose.Schema({
   views: { type: [mongoose.Schema.Types.Mixed], default: [] },
   sourceUpdatedAt: { type: Date, default: null },
   counts: { type: mongoose.Schema.Types.Mixed, default: {} },
+  sourceSchemaHash: { type: String, default: '' },
+  sourceDataHash: { type: String, default: '' },
   rawMeta: { type: mongoose.Schema.Types.Mixed, default: {} }
 }, { timestamps: true });
 
