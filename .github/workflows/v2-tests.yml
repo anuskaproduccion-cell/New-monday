@@ -50,6 +50,7 @@ jobs:
           node --check services/dependencyEngine.js
           node --check services/formulaEngine.js
           node --check scripts/runIsolatedMondayStaging.js
+          node --check scripts/runIsolatedExcelRecoverySmoke.js
           node --check scripts/syncBackupToDrive.js
           node --check public/js/app-v2.js
           node --check public/js/app-v2-dnd.js
@@ -107,3 +108,34 @@ jobs:
           fi
           echo "Explicit STAGING trigger accepted. Monday remains read-only; production promotion is not part of this workflow."
           npm run staging:isolated
+      - name: Detect explicit recovery smoke trigger
+        id: recovery-trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          TRIGGER_SHA="$GITHUB_SHA"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TRIGGER_SHA="${{ github.event.pull_request.head.sha }}"
+            git fetch --no-tags --depth=1 origin "$TRIGGER_SHA"
+          fi
+          MESSAGE="$(git log -1 --format=%B "$TRIGGER_SHA")"
+          if [[ "$MESSAGE" == *"[run-recovery-smoke]"* ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Explicit isolated Excel recovery smoke trigger detected."
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "No recovery smoke trigger; isolated recovery test will not run."
+          fi
+      - name: Explicit isolated Excel recovery smoke
+        if: steps.recovery-trigger.outputs.run == 'true'
+        env:
+          MONGODB_STAGING_URI: ${{ secrets.MONGODB_STAGING_URI }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          set -euo pipefail
+          if [ -z "$MONGODB_STAGING_URI" ]; then
+            echo "Recovery smoke blocked: MONGODB_STAGING_URI is not configured."
+            exit 1
+          fi
+          echo "Running Excel backup → offline edit → preview → apply → conflict protection only inside isolated STAGING."
+          npm run recovery:smoke
