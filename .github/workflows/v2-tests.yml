@@ -32,6 +32,7 @@ jobs:
           node --check routes/workspaces.js
           node --check routes/views.js
           node --check routes/boards.js
+          node --check routes/bulkItems.js
           node --check routes/items.js
           node --check routes/itemOrdering.js
           node --check routes/mondayImport.js
@@ -63,6 +64,7 @@ jobs:
           node --check public/js/app-v2-keyboard.js
           node --check public/js/app-v2-range.js
           node --check public/js/app-v2-views.js
+          node --check public/js/app-v2-bulk.js
       - name: STAGING secret availability preflight
         env:
           STAGING_URI: ${{ secrets.MONGODB_STAGING_URI }}
