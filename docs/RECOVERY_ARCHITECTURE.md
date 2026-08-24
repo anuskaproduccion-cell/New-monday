@@ -84,7 +84,7 @@ El sincronizador:
 5. no necesita `MONDAY_API_TOKEN` y no consulta ni escribe Monday;
 6. registra explícitamente `mondayWriteOperations: 0`.
 
-La configuración y las credenciales no se guardan en el repositorio. Deben almacenarse como variables secretas de Render. La guía está en `docs/DRIVE_BACKUP_SETUP.md`.
+El código ya está construido, pero la sincronización real con la carpeta `NEW MONDAY` todavía no está activada: faltan configurar las credenciales de una cuenta de servicio de Google en Render y compartir con ella esa carpeta. Las credenciales nunca se guardarán en GitHub ni dentro del Excel. La guía está en `docs/DRIVE_BACKUP_SETUP.md`.
 
 ## Pendiente antes de producción
 
