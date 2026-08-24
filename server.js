@@ -26,11 +26,13 @@ if (!MONGODB_URI) {
     .catch(err => console.error('MongoDB connection error:', err.message));
 }
 
+const workspacesRouter = require('./routes/workspaces');
 const boardsRouter = require('./routes/boards');
 const itemsRouter = require('./routes/items');
 const crewRouter = require('./routes/crew');
 const seedRouter = require('./routes/seed');
 
+app.use('/api/workspaces', workspacesRouter);
 app.use('/api/boards', boardsRouter);
 app.use('/api/items', itemsRouter);
 app.use('/api/crew', crewRouter);
