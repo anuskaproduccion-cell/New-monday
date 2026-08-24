@@ -26,6 +26,7 @@ jobs:
           node --check models/StagingWorkspace.js
           node --check models/StagingBoard.js
           node --check models/StagingItem.js
+          node --check models/ExcelRecoveryRun.js
           node --check routes/workspaces.js
           node --check routes/boards.js
           node --check routes/items.js
@@ -38,6 +39,7 @@ jobs:
           node --check services/stagingFingerprint.js
           node --check services/stagingPromotion.js
           node --check services/excelBackup.js
+          node --check services/excelRecovery.js
           node --check services/dependencyEngine.js
           node --check services/formulaEngine.js
           node --check public/js/app-v2.js
