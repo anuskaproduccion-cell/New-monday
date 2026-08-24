@@ -1,11 +1,12 @@
 {
   "name": "new-monday",
-  "version": "1.0.0",
-  "description": "Herramienta de gestion de postproduccion GY_GUAYOTA",
+  "version": "2.0.0-dev",
+  "description": "Motor de gestión de producción con paridad funcional de Monday y soporte multi-workspace",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "test": "node tests/formulaEngine.test.js && node tests/dependencyEngine.test.js"
   },
   "dependencies": {
     "express": "^4.18.2",
