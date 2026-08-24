@@ -62,6 +62,7 @@ jobs:
           node --check public/js/app-v2-relational.js
           node --check public/js/app-v2-keyboard.js
           node --check public/js/app-v2-range.js
+          node --check public/js/app-v2-views.js
       - name: STAGING secret availability preflight
         env:
           STAGING_URI: ${{ secrets.MONGODB_STAGING_URI }}
