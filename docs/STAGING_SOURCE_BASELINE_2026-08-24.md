@@ -12,11 +12,16 @@ Este documento fija la línea base del origen que deberá reproducir la primera 
 
 Consulta paginada de todos los tableros accesibles y lectura de items/subitems:
 
+- Workspaces devueltos directamente por `workspaces`: **11**
+- Workspaces adicionales detectados únicamente a través de referencias `board.workspace`: **6**
+- Jerarquía total de workspaces que New Monday debe preservar: **17**
 - Tableros accesibles totales: **103**
 - Tableros visibles/operativos: **55**
 - Tableros internos `Subelementos de ...`: **48**
 - Items de primer nivel en tableros visibles: **1230**
 - Subitems: **413**
+
+Los seis workspaces adicionales son `_DESARROLLO`, `_POST`, `_EDITING`, `_EDITING ASSISTANCE`, `_SHOOTING` y `_PRE&PROD`. Monday no los devuelve en la consulta normal de workspaces, pero sí aparecen como workspace real de tableros accesibles. Por ello New Monday debe reconstruirlos como workspaces técnicos para no dejar esos tableros huérfanos.
 
 Los 48 tableros internos de subelementos no deben mostrarse como fases independientes en New Monday; sus datos se reconstruyen como subitems anidados.
 
@@ -87,15 +92,17 @@ Estos tableros se usarán como casos de estrés para comprobar paginación, orde
 
 La auditoría debe dar simultáneamente:
 
-1. 103 tableros totales.
-2. 55 tableros visibles.
-3. 48 tableros internos de subitems.
-4. 1230 items de primer nivel.
-5. 413 subitems.
-6. 0 tipos de columna desconocidos.
-7. Fingerprint de esquema correcto por tablero.
-8. Fingerprint de datos correcto por cada tablero visible.
-9. 0 escrituras en Monday.
-10. 0 cambios en `main` o en la producción de New Monday durante la prueba.
+1. 17 workspaces preservados: 11 directos + 6 técnicos descubiertos por referencias de tablero.
+2. 103 tableros totales.
+3. 55 tableros visibles.
+4. 48 tableros internos de subitems.
+5. 1230 items de primer nivel.
+6. 413 subitems.
+7. 0 tipos de columna desconocidos.
+8. Fingerprint de esquema correcto por tablero.
+9. Fingerprint de datos correcto por cada tablero visible.
+10. Ningún tablero con `workspaceRef` huérfano después de la promoción de prueba.
+11. 0 escrituras en Monday.
+12. 0 cambios en `main` o en la producción de New Monday durante la prueba.
 
 Si cualquiera de estos puntos falla, STAGING no se promociona.
