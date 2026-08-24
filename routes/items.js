@@ -96,10 +96,14 @@ router.post('/:id/duplicate', async (req, res) => {
     delete sourceObject.mondayId;
 
     const nextOrder = Number.isFinite(source.order) ? source.order + 1 : 0;
+    const sourceGroupFilter = source.groupId
+      ? { groupId: source.groupId }
+      : { group: source.group };
+
     await Item.updateMany(
       activeItemQuery({
         board: source.board,
-        groupId: source.groupId || '',
+        ...sourceGroupFilter,
         order: { $gte: nextOrder }
       }),
       { $inc: { order: 1 } }
