@@ -1,5 +1,6 @@
 const Board = require('../models/Board');
 const Item = require('../models/Item');
+const { recalculateFormulaValues } = require('./formulaEngine');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -127,6 +128,7 @@ async function cascadeStrictDependencies({ boardId, changedItemId, deltaDays }) 
           dependent.endDate = new Date(dependent.endDate.getTime() + deltaDays * DAY_MS);
         }
 
+        recalculateFormulaValues(board, dependent);
         await dependent.save();
         shifted.push({ itemId: String(dependent._id), columnId: timeColumn.id, deltaDays });
       }
