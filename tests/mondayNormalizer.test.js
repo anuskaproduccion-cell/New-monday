@@ -37,4 +37,34 @@ const formula = normalizeColumnValue({
 assert.strictEqual(formula.displayValue, '10');
 assert.strictEqual(formula.calculated, false);
 
+const file = normalizeColumnValue({
+  type: 'file',
+  text: '',
+  value: null,
+  files: [{
+    asset_id: '123',
+    name: 'still.jpg',
+    is_image: true,
+    created_at: '2026-08-24',
+    asset: {
+      id: '123',
+      name: 'still.jpg',
+      file_extension: 'jpg',
+      file_size: 2048,
+      url: 'https://example.invalid/asset/123'
+    }
+  }]
+});
+assert.strictEqual(file.files.length, 1);
+assert.deepStrictEqual(file.files[0], {
+  kind: 'asset',
+  assetId: '123',
+  name: 'still.jpg',
+  isImage: true,
+  createdAt: '2026-08-24',
+  extension: 'jpg',
+  size: 2048,
+  url: 'https://example.invalid/asset/123'
+});
+
 console.log('mondayNormalizer tests passed');
