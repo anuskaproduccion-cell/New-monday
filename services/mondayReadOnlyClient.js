@@ -38,6 +38,47 @@ async function mondayQuery(document, variables = {}) {
   return payload.data;
 }
 
+function mergeWorkspacesWithBoardReferences(workspaces = [], boards = []) {
+  const byId = new Map();
+  const merged = [];
+
+  for (const workspace of workspaces || []) {
+    if (!workspace?.id) continue;
+    const normalized = {
+      ...workspace,
+      id: String(workspace.id),
+      discoveredFromBoardReference: false
+    };
+    if (!byId.has(normalized.id)) {
+      byId.set(normalized.id, normalized);
+      merged.push(normalized);
+    }
+  }
+
+  // Monday's workspaces query can omit technical/template workspaces that are
+  // nevertheless referenced by accessible boards. Those references are part of
+  // the source hierarchy and must be preserved so imported boards are never
+  // orphaned in New Monday.
+  for (const board of boards || []) {
+    const workspace = board?.workspace;
+    if (!workspace?.id) continue;
+    const id = String(workspace.id);
+    if (byId.has(id)) continue;
+
+    const discovered = {
+      id,
+      name: workspace.name || `Workspace ${id}`,
+      description: '',
+      kind: 'open',
+      discoveredFromBoardReference: true
+    };
+    byId.set(id, discovered);
+    merged.push(discovered);
+  }
+
+  return merged;
+}
+
 async function getAccountInventory() {
   const workspacesData = await mondayQuery(`
     query ReadWorkspaces {
@@ -75,16 +116,17 @@ async function getAccountInventory() {
     if (page > 100) throw new Error('Monday board pagination safety limit reached');
   }
 
+  const workspaces = mergeWorkspacesWithBoardReferences(workspacesData.workspaces || [], boards);
   const visibleBoards = boards.filter(board => !board.name.startsWith('Subelementos de '));
   const internalSubitemBoards = boards.filter(board => board.name.startsWith('Subelementos de '));
 
   return {
-    workspaces: workspacesData.workspaces || [],
+    workspaces,
     boards,
     visibleBoards,
     internalSubitemBoards,
     counts: {
-      workspaces: (workspacesData.workspaces || []).length,
+      workspaces: workspaces.length,
       boards: boards.length,
       visibleBoards: visibleBoards.length,
       internalSubitemBoards: internalSubitemBoards.length
@@ -252,5 +294,6 @@ module.exports = {
   mondayQuery,
   getAccountInventory,
   getBoardSnapshot,
+  mergeWorkspacesWithBoardReferences,
   assertReadOnlyDocument
 };
