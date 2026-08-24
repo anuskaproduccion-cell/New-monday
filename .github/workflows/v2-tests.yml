@@ -110,7 +110,15 @@ jobs:
             exit 1
           fi
           echo "Explicit STAGING trigger accepted. Monday remains read-only; production promotion is not part of this workflow."
+          set +e
           npm run staging:isolated
+          STAGING_EXIT=$?
+          set -e
+          if [ "$STAGING_EXIT" -eq 75 ]; then
+            echo "::warning::Monday throttled the read-only STAGING import. No Monday mutations or production writes occurred; retry is still required."
+            exit 0
+          fi
+          exit "$STAGING_EXIT"
       - name: Detect explicit recovery smoke trigger
         id: recovery-trigger
         shell: bash
