@@ -51,6 +51,11 @@ const boardSchema = new mongoose.Schema({
   parentBoardMondayId: { type: String, default: null },
   archived: { type: Boolean, default: false },
   originMeta: { type: mongoose.Schema.Types.Mixed, default: {} }
-}, { timestamps: true });
+}, {
+  timestamps: true,
+  // Preserve structurally meaningful empty settings imported from Monday, such
+  // as Mirror displayed_column: {}, instead of letting Mongoose minimize them.
+  minimize: false
+});
 
 module.exports = mongoose.model('Board', boardSchema);
