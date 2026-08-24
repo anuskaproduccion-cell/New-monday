@@ -20,12 +20,12 @@ function databaseNameFromMongoUri(uri) {
   }
 }
 
-function assertIsolatedStagingEnvironment() {
-  const stagingUri = process.env.MONGODB_STAGING_URI;
+function assertIsolatedStagingEnvironment(env = process.env) {
+  const stagingUri = env.MONGODB_STAGING_URI;
   if (!stagingUri) throw new Error('MONGODB_STAGING_URI is required');
-  if (!process.env.MONDAY_API_TOKEN) throw new Error('MONDAY_API_TOKEN is required for read-only source queries');
+  if (!env.MONDAY_API_TOKEN) throw new Error('MONDAY_API_TOKEN is required for read-only source queries');
 
-  const productionUri = process.env.MONGODB_URI;
+  const productionUri = env.MONGODB_URI;
   if (productionUri && productionUri.trim() === stagingUri.trim()) {
     throw new Error('Safety block: staging URI is identical to the production MONGODB_URI');
   }
@@ -91,18 +91,21 @@ async function main() {
   if (differences.length) throw new Error(`Source baseline changed: ${JSON.stringify(differences)}`);
 }
 
-main()
-  .catch(error => {
-    console.error('Isolated STAGING failed:', error.message);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await mongoose.disconnect().catch(() => {});
-  });
+if (require.main === module) {
+  main()
+    .catch(error => {
+      console.error('Isolated STAGING failed:', error.message);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await mongoose.disconnect().catch(() => {});
+    });
+}
 
 module.exports = {
   BASELINE,
   databaseNameFromMongoUri,
   assertIsolatedStagingEnvironment,
-  baselineDiff
+  baselineDiff,
+  main
 };
