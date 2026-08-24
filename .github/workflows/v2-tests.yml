@@ -71,14 +71,34 @@ jobs:
           if [ -n "$MONDAY_TOKEN" ]; then echo "MONDAY_API_TOKEN_CONFIGURED=true"; else echo "MONDAY_API_TOKEN_CONFIGURED=false"; fi
           if [ -n "$PRODUCTION_URI" ]; then echo "MONGODB_URI_CONFIGURED=true"; else echo "MONGODB_URI_CONFIGURED=false"; fi
           echo "No secret values are printed by this preflight."
+      - name: Detect explicit STAGING trigger
+        id: staging-trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          TRIGGER_SHA="$GITHUB_SHA"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TRIGGER_SHA="${{ github.event.pull_request.head.sha }}"
+            git fetch --no-tags --depth=1 origin "$TRIGGER_SHA"
+          fi
+          MESSAGE="$(git log -1 --format=%B "$TRIGGER_SHA")"
+          if [[ "$MESSAGE" == *"[run-staging]"* ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Explicit STAGING trigger detected."
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "No explicit STAGING trigger; import will not run."
+          fi
       - name: Explicit isolated STAGING execution
-        if: >-
-          (github.event_name == 'push' && contains(github.event.head_commit.message, '[run-staging]')) ||
-          (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && hashFiles('docs/STAGING_TRIGGER_2026-08-24.md') != '')
+        if: steps.staging-trigger.outputs.run == 'true'
         env:
           MONGODB_STAGING_URI: ${{ secrets.MONGODB_STAGING_URI }}
           MONDAY_API_TOKEN: ${{ secrets.MONDAY_API_TOKEN }}
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONDAY_READ_MAX_ATTEMPTS: '6'
+          MONDAY_READ_BASE_DELAY_MS: '2000'
+          MONDAY_READ_MAX_DELAY_MS: '90000'
+          MONDAY_READ_TIMEOUT_MS: '30000'
         run: |
           set -euo pipefail
           if [ -z "$MONGODB_STAGING_URI" ] || [ -z "$MONDAY_API_TOKEN" ]; then
