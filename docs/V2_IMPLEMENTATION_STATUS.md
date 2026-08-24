@@ -24,6 +24,7 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 - Normalización de datos leídos desde Monday.
 - Lectura paginada de tableros grandes.
 - Historial local `ActivityEvent` para registrar cambios hechos dentro de New Monday.
+- Historial de creación, edición, duplicación y reordenación de grupos y columnas, además de cambios de tablero e items.
 - Actualizaciones/comentarios por item con respuestas, almacenados únicamente en New Monday.
 
 ### Frontend dinámico
@@ -99,14 +100,14 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 - Configurar una cuenta de servicio de Google, compartir con ella la carpeta `NEW MONDAY` y verificar la primera copia real en Drive.
 - Crear el Cron Job de Render después de validar manualmente la sincronización.
 - Resolver edición segura de columnas relacionales en recuperación si se decide soportarla.
-- Ampliar historial local para cubrir todas las operaciones de grupos/columnas y cambios masivos.
+- Completar historial para algunas acciones masivas y operaciones especiales.
 - Añadir reordenación visual de pestañas/vistas y más tipos de vista.
 - Completar opciones avanzadas específicas de columnas relacionales/calculadas.
 - Hacer pruebas funcionales de navegador y auditoría visual final frente a Monday, siempre en modo consulta.
 
 ## Estado de validación
 
-GitHub Actions ejecuta `npm test` y validaciones de sintaxis del backend, servicios, scripts y frontend v2. Los tests de Excel, recuperación y sincronización Drive están incluidos en CI. La gestión avanzada de columnas, el pegado de rangos y la selección rectangular forman parte del bloque validado por el workflow.
+GitHub Actions ejecuta `npm test` y validaciones de sintaxis del backend, servicios, scripts y frontend v2. Los tests de Excel, recuperación y sincronización Drive están incluidos en CI. La gestión avanzada de columnas, el pegado/copia de rangos, la selección rectangular y el historial de grupos/columnas forman parte del bloque validado por el workflow.
 
 ## Producción
 
