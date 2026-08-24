@@ -30,3 +30,4 @@ jobs:
           node --check services/mondayNormalizer.js
           node --check services/dependencyEngine.js
           node --check services/formulaEngine.js
+          node --check public/js/app-v2.js
