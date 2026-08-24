@@ -6,25 +6,21 @@ Fecha: 2026-08-24
 
 **Monday se estudia y se lee, pero no se modifica nunca.**
 
-La integración de New Monday con Monday es unidireccional y de solo lectura. El cliente `services/mondayReadOnlyClient.js` rechaza explícitamente cualquier documento GraphQL que contenga `mutation`.
+La integración de New Monday con Monday es unidireccional y de solo lectura. El cliente `services/mondayReadOnlyClient.js` rechaza explícitamente cualquier documento GraphQL que contenga `mutation` y existe una prueba automática específica para esta política.
 
 ## Implementado en la rama `agent/monday-engine-v2`
 
 ### Motor de datos
 
-- Workspace persistente con clasificación y trazabilidad de origen.
-- Board con grupos, columnas y vistas dinámicas.
-- Item con `columnValues` dinámico.
+- Workspace persistente: workspace = película.
+- Board dinámico: tablero = fase.
+- Grupos, columnas y vistas dinámicas.
+- Items y subitems con `columnValues` dinámico.
 - IDs de origen de Monday para trazabilidad sin sincronización bidireccional.
-- Subitems como items anidados, no como tableros visibles independientes.
-- Duplicación de elementos conservando valores.
-- Duplicación de grupos y columnas.
-- Renombrado de grupo conservando ID estable.
-- Movimiento y reordenación de elementos.
-- Reordenación de grupos y columnas.
-- Archivo, papelera y restauración.
+- Subitems anidados, no expuestos como tableros internos independientes.
+- Duplicación, movimiento, reordenación, archivo, papelera y restauración dentro de New Monday.
 - Dependencias `strict` con desplazamiento en cascada.
-- Fórmula de semanas observada en los tableros reales.
+- Motor local para las fórmulas reales observadas.
 - Normalización de datos leídos desde Monday.
 - Lectura paginada de tableros grandes.
 
@@ -33,41 +29,69 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 - Navegación por workspace.
 - Sidebar de tableros por workspace.
 - Tabla generada desde el esquema real de columnas del Board.
-- Fallback compatible con los datos legacy v1.
 - Render y edición para People, Status, Timeline, Date, Formula, Dependency, World Clock, Dropdown, Email, Link, Numbers y Text.
 - Render de File, Board Relation, Mirror y Subtasks.
-- Menú de elemento: duplicar, mover, archivar, papelera y añadir subitem.
-- Menú de grupo: renombrar, cambiar color y duplicar.
-- Menú de columna: renombrar, fijar/desfijar, ocultar y duplicar.
-- Selección múltiple con acciones en lote.
-- Drag & drop de elementos entre grupos.
-- Drag & drop para reordenar grupos.
-- Drag & drop para reordenar columnas.
-- Gantt dinámico basado en la primera columna Timeline/Date disponible.
-- Movimiento y resize de barras conectado al motor de dependencias.
-- Visualización básica de milestones.
-- Vistas guardadas visibles como pestañas; Gantt y vistas de progreso tienen render local.
+- Menús de elemento, grupo y columna.
+- Selección múltiple.
+- Drag & drop de items, grupos y columnas.
+- Gantt dinámico con movimiento y resize conectado al motor de dependencias.
+- Pestañas de vistas.
+- Botones `Respaldo Excel` y `Recuperar Excel`.
+
+### Migración segura desde Monday
+
+- Importación completa a colecciones STAGING aisladas en MongoDB.
+- Auditoría mediante conteos y fingerprints SHA-256 por tablero.
+- Endpoints para consultar runs, progreso y auditoría.
+- Preview de promoción de staging.
+- Promoción protegida por confirmación explícita.
+- Bloqueo de conflictos contra registros locales.
+- Cero operaciones de escritura en Monday en staging, auditoría y promoción.
+
+### Excel de emergencia y recuperación
+
+- Generador `.xlsx` operativo desde New Monday.
+- `_MANIFEST`, `_WORKSPACES`, `_BOARDS` y una hoja por tablero visible.
+- IDs técnicos ocultos y línea base JSON por item.
+- Validaciones de Status, Dropdown, Grupo, Tipo y Acción cuando aplica.
+- Items y subitems editables durante una caída.
+- Creación offline de items y subitems.
+- Acciones explícitas `ARCHIVAR` y `PAPELERA`; borrar una fila no borra datos.
+- Preview de recuperación sin escrituras.
+- Detección de conflictos concurrentes.
+- Confirmación explícita antes de aplicar.
+- Aplicación transaccional en MongoDB.
+- Recálculo de fórmulas locales tras recuperación.
+- Formula, Mirror, File, Dependency y Board Relation se conservan pero son de solo lectura en la recuperación manual por ahora.
+
+### Google Drive
+
+- Sincronizador `services/driveBackup.js`.
+- Comando `npm run sync:drive-backup`.
+- `NEW_MONDAY_BACKUP.xlsx` como copia actual.
+- `NEW_MONDAY_BACKUP_YYYY-MM-DD.xlsx` como snapshot diario.
+- Credenciales de Google fuera del repositorio mediante variables secretas.
+- El sincronizador parte de MongoDB de New Monday y no necesita `MONDAY_API_TOKEN`.
+- Guía de configuración en `docs/DRIVE_BACKUP_SETUP.md`.
 
 ## Pendiente antes de promover a `main`
 
-- Importación staging completa de todos los workspaces/tableros/items/subitems.
-- Resolver Board Relation y Mirror para todos los casos importados y no solo relaciones ya presentes localmente.
-- Editor de archivos y subida local.
-- Updates/comentarios/respuestas.
-- Actividad/historial local.
-- Filtros avanzados y multi-sort con persistencia por vista.
-- Copiar/pegar y navegación de teclado completa.
-- Creación/configuración completa de columnas por tipo.
-- Creación, duplicación y gestión de vistas.
-- Trash/Archive UI dedicada para restaurar desde la interfaz.
-- Snapshots y exportación Excel de emergencia.
-- Pruebas funcionales de navegador.
-- Auditoría visual final frente a Monday en modo de consulta.
+- Ejecutar una importación STAGING real y revisar la auditoría completa.
+- Probar una recuperación completa Excel → preview → apply contra una base MongoDB de prueba.
+- Configurar una cuenta de servicio de Google, compartir con ella la carpeta `NEW MONDAY` y verificar la primera copia real en Drive.
+- Crear el Cron Job de Render después de validar manualmente la sincronización.
+- Resolver edición segura de columnas relacionales en recuperación si se decide soportarla.
+- Completar Updates/comentarios e historial local.
+- Completar filtros avanzados, multi-sort y persistencia por vista.
+- Completar copiar/pegar y navegación de teclado.
+- Completar creación/configuración de columnas y vistas.
+- Añadir Trash/Archive UI dedicada.
+- Hacer pruebas funcionales de navegador y auditoría visual final frente a Monday, siempre en modo consulta.
 
 ## Estado de validación
 
-GitHub Actions valida sintaxis del backend, servicios y frontend v2, además de ejecutar `npm test`. La ejecución de CI correspondiente al bloque de frontend dinámico y drag & drop ha finalizado correctamente.
+GitHub Actions ejecuta `npm test` y validaciones de sintaxis del backend, servicios, scripts y frontend v2. Los tests de Excel, recuperación y sincronización Drive están incluidos en CI.
 
 ## Producción
 
-`main` y Render no se modifican durante esta fase. La PR #2 permanece en Draft hasta completar la validación funcional y visual.
+`main` y Render no se modifican durante esta fase. La PR #2 permanece en Draft hasta completar la validación funcional, de migración, recuperación y respaldo.
