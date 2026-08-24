@@ -29,6 +29,7 @@ if (!MONGODB_URI) {
 const workspacesRouter = require('./routes/workspaces');
 const viewsRouter = require('./routes/views');
 const boardsRouter = require('./routes/boards');
+const bulkItemsRouter = require('./routes/bulkItems');
 const itemsRouter = require('./routes/items');
 const itemOrderingRouter = require('./routes/itemOrdering');
 const crewRouter = require('./routes/crew');
@@ -41,6 +42,7 @@ const activityRouter = require('./routes/activity');
 app.use('/api/workspaces', workspacesRouter);
 app.use('/api/boards', viewsRouter);
 app.use('/api/boards', boardsRouter);
+app.use('/api/items', bulkItemsRouter);
 app.use('/api/items', itemsRouter);
 app.use('/api/item-ordering', itemOrderingRouter);
 app.use('/api/crew', crewRouter);
