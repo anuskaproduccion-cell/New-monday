@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const Board = require('../models/Board');
 const Item = require('../models/Item');
+const { logActivity } = require('../services/activityLogger');
 
 function generatedId(prefix) {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;
@@ -46,6 +47,7 @@ router.post('/:id/groups', async (req, res) => {
     };
     board.groups.push(group);
     await board.save();
+    await logActivity({ board: board._id, type: 'group_created', field: 'group', message: `Grupo “${group.title}” creado`, meta: { groupId: group.id } });
     res.status(201).json(group);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -61,6 +63,8 @@ router.patch('/:id/groups/:groupId', async (req, res) => {
     if (!group) return res.status(404).json({ error: 'Group not found' });
 
     const previousTitle = group.title;
+    const previousColor = group.color;
+    const previousArchived = group.archived;
     if (req.body.title !== undefined) group.title = String(req.body.title).trim() || group.title;
     if (req.body.color !== undefined) group.color = req.body.color;
     if (req.body.order !== undefined) group.order = Number(req.body.order);
@@ -77,6 +81,19 @@ router.patch('/:id/groups/:groupId', async (req, res) => {
     };
     const itemPatch = { groupId: group.id, group: group.title, groupColor: group.color };
     await Item.updateMany(itemQuery, { $set: itemPatch });
+
+    const changes = [];
+    if (previousTitle !== group.title) changes.push(`renombrado de “${previousTitle}” a “${group.title}”`);
+    if (previousColor !== group.color) changes.push(`color cambiado a ${group.color}`);
+    if (previousArchived !== group.archived) changes.push(group.archived ? 'archivado' : 'restaurado');
+    if (req.body.order !== undefined) changes.push('orden actualizado');
+    await logActivity({
+      board: board._id,
+      type: 'group_updated',
+      field: 'group',
+      message: changes.length ? `Grupo ${changes.join(' · ')}` : `Grupo “${group.title}” actualizado`,
+      meta: { groupId: group.id, previousTitle, title: group.title }
+    });
 
     res.json(group);
   } catch (err) {
@@ -140,7 +157,6 @@ router.post('/:id/groups/:groupId/duplicate', async (req, res) => {
       parentMap.set(String(sourceItem._id), duplicateItem);
     }
 
-    // Dynamic v2 subitems are separate Item documents. Clone them under their new parents.
     if (parentMap.size) {
       const sourceSubitems = await Item.find({
         parentItem: { $in: [...parentMap.keys()] },
@@ -172,6 +188,13 @@ router.post('/:id/groups/:groupId/duplicate', async (req, res) => {
       }
     }
 
+    await logActivity({
+      board: board._id,
+      type: 'group_duplicated',
+      field: 'group',
+      message: `Grupo “${sourceGroup.title}” duplicado como “${duplicateGroup.title}”`,
+      meta: { sourceGroupId: sourceGroup.id, groupId: duplicateGroup.id, duplicatedItems: sourceItems.length }
+    });
     res.status(201).json({ group: duplicateGroup, duplicatedItems: sourceItems.length });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -189,6 +212,7 @@ router.post('/:id/groups/reorder', async (req, res) => {
       if (orderMap.has(group.id)) group.order = orderMap.get(group.id);
     });
     await board.save();
+    await logActivity({ board: board._id, type: 'groups_reordered', field: 'group', message: 'Grupos reordenados', meta: { groupIds: req.body.groupIds } });
     res.json(board.groups.sort((a, b) => a.order - b.order));
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -216,6 +240,7 @@ router.post('/:id/columns', async (req, res) => {
     };
     board.columns.push(column);
     await board.save();
+    await logActivity({ board: board._id, type: 'column_created', field: column.id, message: `Columna “${column.title}” creada`, meta: { columnId: column.id, columnType: column.type } });
     res.status(201).json(column);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -229,10 +254,26 @@ router.patch('/:id/columns/:columnId', async (req, res) => {
     const column = board.columns.find(entry => entry.id === req.params.columnId);
     if (!column) return res.status(404).json({ error: 'Column not found' });
 
+    const previous = clonePlain(column.toObject ? column.toObject() : column);
     for (const field of ['title', 'description', 'settings', 'order', 'hidden', 'pinned']) {
       if (req.body[field] !== undefined) column[field] = req.body[field];
     }
     await board.save();
+
+    const changes = [];
+    if (previous.title !== column.title) changes.push(`renombrada de “${previous.title}” a “${column.title}”`);
+    if (previous.description !== column.description) changes.push('descripción actualizada');
+    if (previous.hidden !== column.hidden) changes.push(column.hidden ? 'ocultada' : 'mostrada');
+    if (previous.pinned !== column.pinned) changes.push(column.pinned ? 'fijada' : 'desfijada');
+    if (req.body.settings !== undefined) changes.push('configuración actualizada');
+    if (req.body.order !== undefined) changes.push('orden actualizado');
+    await logActivity({
+      board: board._id,
+      type: 'column_updated',
+      field: column.id,
+      message: changes.length ? `Columna ${changes.join(' · ')}` : `Columna “${column.title}” actualizada`,
+      meta: { columnId: column.id, columnType: column.type, previousTitle: previous.title, title: column.title }
+    });
     res.json(column);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -270,6 +311,13 @@ router.post('/:id/columns/:columnId/duplicate', async (req, res) => {
     }
 
     await board.save();
+    await logActivity({
+      board: board._id,
+      type: 'column_duplicated',
+      field: duplicate.id,
+      message: `Columna “${sourceColumn.title}” duplicada como “${duplicate.title}”`,
+      meta: { sourceColumnId: sourceColumn.id, columnId: duplicate.id, includeValues: req.body.includeValues === true }
+    });
     res.status(201).json(duplicate);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -287,6 +335,7 @@ router.post('/:id/columns/reorder', async (req, res) => {
       if (orderMap.has(column.id)) column.order = orderMap.get(column.id);
     });
     await board.save();
+    await logActivity({ board: board._id, type: 'columns_reordered', field: 'column', message: 'Columnas reordenadas', meta: { columnIds: req.body.columnIds } });
     res.json(board.columns.sort((a, b) => a.order - b.order));
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -307,6 +356,7 @@ router.post('/', async (req, res) => {
   try {
     const board = new Board(req.body);
     await board.save();
+    await logActivity({ board: board._id, type: 'board_created', field: 'board', message: `Tablero “${board.name}” creado` });
     res.status(201).json(board);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -315,12 +365,18 @@ router.post('/', async (req, res) => {
 
 router.patch('/:id', async (req, res) => {
   try {
+    const before = await Board.findById(req.params.id).lean();
     const board = await Board.findByIdAndUpdate(
       req.params.id,
       { $set: req.body },
       { new: true, runValidators: true }
     ).populate('workspaceRef');
     if (!board) return res.status(404).json({ error: 'Board not found' });
+    const changes = [];
+    if (before?.name !== board.name) changes.push(`renombrado de “${before?.name || ''}” a “${board.name}”`);
+    if (req.body.icon !== undefined && before?.icon !== board.icon) changes.push('icono actualizado');
+    if (req.body.order !== undefined) changes.push('orden actualizado');
+    await logActivity({ board: board._id, type: 'board_updated', field: 'board', message: changes.length ? `Tablero ${changes.join(' · ')}` : `Tablero “${board.name}” actualizado` });
     res.json(board);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -335,6 +391,7 @@ router.delete('/:id', async (req, res) => {
       { new: true }
     );
     if (!board) return res.status(404).json({ error: 'Board not found' });
+    await logActivity({ board: board._id, type: 'board_archived', field: 'board', message: `Tablero “${board.name}” archivado` });
     res.json(board);
   } catch (err) {
     res.status(500).json({ error: err.message });
