@@ -13,6 +13,38 @@ function normalizeLinkedItems(linkedItems = []) {
   }));
 }
 
+function normalizeFileEntry(file) {
+  if (!file || typeof file !== 'object') return file;
+  if (file.asset_id || file.asset) {
+    return {
+      kind: 'asset',
+      assetId: file.asset_id ? String(file.asset_id) : (file.asset?.id ? String(file.asset.id) : null),
+      name: file.name || file.asset?.name || '',
+      isImage: Boolean(file.is_image),
+      createdAt: file.created_at || null,
+      extension: file.asset?.file_extension || '',
+      size: file.asset?.file_size ?? null,
+      url: file.asset?.url || null
+    };
+  }
+  if (file.object_id) {
+    return {
+      kind: 'doc',
+      fileId: file.file_id ? String(file.file_id) : null,
+      objectId: String(file.object_id),
+      url: file.url || null,
+      createdAt: file.created_at || null
+    };
+  }
+  return {
+    kind: file.kind ? String(file.kind).toLowerCase() : 'link',
+    fileId: file.file_id ? String(file.file_id) : null,
+    name: file.name || '',
+    url: file.url || null,
+    createdAt: file.created_at || null
+  };
+}
+
 function normalizeColumnValue(columnValue) {
   const raw = parseJsonValue(columnValue.value);
   const base = {
@@ -125,11 +157,14 @@ function normalizeColumnValue(columnValue) {
         label: raw?.text || columnValue.text || ''
       };
 
-    case 'file':
+    case 'file': {
+      const typedFiles = Array.isArray(columnValue.files) ? columnValue.files : [];
+      const rawFiles = Array.isArray(raw?.files) ? raw.files : [];
       return {
         ...base,
-        files: raw?.files || []
+        files: (typedFiles.length ? typedFiles : rawFiles).map(normalizeFileEntry)
       };
+    }
 
     default:
       return base;
@@ -163,6 +198,7 @@ function normalizeMondayItem(item, { boardId, parentItemId = null, parentMondayI
 
 module.exports = {
   parseJsonValue,
+  normalizeFileEntry,
   normalizeColumnValue,
   normalizeColumnValues,
   normalizeMondayItem
