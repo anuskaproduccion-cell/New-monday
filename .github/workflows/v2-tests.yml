@@ -57,5 +57,6 @@ jobs:
           node --check public/js/app-v2-updates.js
           node --check public/js/app-v2-lifecycle.js
           node --check public/js/app-v2-columns.js
+          node --check public/js/app-v2-relational.js
           node --check public/js/app-v2-keyboard.js
           node --check public/js/app-v2-range.js
