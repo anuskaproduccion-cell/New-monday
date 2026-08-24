@@ -149,3 +149,6 @@ router.post('/bulk', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.MAX_BULK_ITEMS = MAX_BULK_ITEMS;
+module.exports.normalizeIds = normalizeIds;
+module.exports.statusLabels = statusLabels;
