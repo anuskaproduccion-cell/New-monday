@@ -4,6 +4,7 @@ const Board = require('../models/Board');
 const Item = require('../models/Item');
 const { cascadeStrictDependencies, timelineDeltaDays } = require('../services/dependencyEngine');
 const { recalculateAndSaveItem } = require('../services/formulaEngine');
+const { logActivity } = require('../services/activityLogger');
 
 function activeItemQuery(extra = {}) {
   return {
@@ -55,7 +56,13 @@ router.patch('/group', async (req, res) => {
     if (groupId) patch.groupId = groupId;
     if (groupColor) patch.groupColor = groupColor;
 
-    await Item.updateMany(query, { $set: patch });
+    const result = await Item.updateMany(query, { $set: patch });
+    if (boardId) await logActivity({
+      board: boardId,
+      type: 'group_items_updated',
+      message: 'Elementos de grupo actualizados',
+      meta: { groupId: groupId || '', groupName: groupName || '', modifiedCount: result.modifiedCount || 0 }
+    });
     res.json({ message: 'Group updated' });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -97,6 +104,15 @@ router.patch('/:id/columns/:columnId', async (req, res) => {
       });
     }
 
+    await logActivity({
+      board: item.board,
+      item: item._id,
+      type: 'column_value_changed',
+      field: req.params.columnId,
+      message: `${column?.title || req.params.columnId} actualizado en ${item.name}`,
+      meta: { columnId: req.params.columnId, columnTitle: column?.title || '', previousValue, nextValue, cascadedCount: cascaded.length }
+    });
+
     res.json({ item, cascaded });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -105,12 +121,22 @@ router.patch('/:id/columns/:columnId', async (req, res) => {
 
 router.patch('/:id', async (req, res) => {
   try {
+    const before = await Item.findOne({ _id: req.params.id, deletedAt: null });
+    if (!before) return res.status(404).json({ error: 'Item not found' });
     const item = await Item.findOneAndUpdate(
       { _id: req.params.id, deletedAt: null },
       { $set: req.body },
       { new: true, runValidators: true }
     );
-    if (!item) return res.status(404).json({ error: 'Item not found' });
+    const changedFields = Object.keys(req.body || {});
+    await logActivity({
+      board: item.board,
+      item: item._id,
+      type: 'item_updated',
+      field: changedFields.length === 1 ? changedFields[0] : '',
+      message: changedFields.includes('name') ? `Elemento renombrado a ${item.name}` : `${item.name} actualizado`,
+      meta: { changedFields, previousName: before.name, nextName: item.name }
+    });
     res.json(item);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -122,6 +148,13 @@ router.post('/', async (req, res) => {
     const item = new Item(req.body);
     await item.save();
     await recalculateAndSaveItem(item);
+    await logActivity({
+      board: item.board,
+      item: item._id,
+      type: item.isSubitem ? 'subitem_created' : 'item_created',
+      message: `${item.isSubitem ? 'Subelemento' : 'Elemento'} creado: ${item.name}`,
+      meta: { groupId: item.groupId, group: item.group, parentItem: item.parentItem ? String(item.parentItem) : null }
+    });
     res.status(201).json(item);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -169,6 +202,13 @@ router.post('/:id/duplicate', async (req, res) => {
 
     await duplicate.save();
     await recalculateAndSaveItem(duplicate);
+    await logActivity({
+      board: duplicate.board,
+      item: duplicate._id,
+      type: 'item_duplicated',
+      message: `Elemento duplicado: ${duplicate.name}`,
+      meta: { duplicatedFrom: String(source._id), sourceName: source.name }
+    });
     res.status(201).json(duplicate);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -180,6 +220,7 @@ router.post('/:id/move', async (req, res) => {
     const item = await Item.findOne({ _id: req.params.id, deletedAt: null });
     if (!item) return res.status(404).json({ error: 'Item not found' });
 
+    const previous = { groupId: item.groupId, group: item.group, order: item.order };
     const patch = {};
     for (const field of ['groupId', 'group', 'groupColor', 'order']) {
       if (req.body[field] !== undefined) patch[field] = req.body[field];
@@ -187,6 +228,13 @@ router.post('/:id/move', async (req, res) => {
 
     Object.assign(item, patch);
     await item.save();
+    await logActivity({
+      board: item.board,
+      item: item._id,
+      type: 'item_moved',
+      message: `${item.name} movido a ${item.group}`,
+      meta: { from: previous, to: { groupId: item.groupId, group: item.group, order: item.order } }
+    });
     res.json(item);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -201,6 +249,7 @@ router.post('/:id/archive', async (req, res) => {
       { new: true }
     );
     if (!item) return res.status(404).json({ error: 'Item not found' });
+    await logActivity({ board: item.board, item: item._id, type: 'item_archived', message: `${item.name} archivado` });
     res.json(item);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -215,6 +264,7 @@ router.post('/:id/unarchive', async (req, res) => {
       { new: true }
     );
     if (!item) return res.status(404).json({ error: 'Item not found' });
+    await logActivity({ board: item.board, item: item._id, type: 'item_unarchived', message: `${item.name} restaurado del archivo` });
     res.json(item);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -229,6 +279,7 @@ router.post('/:id/restore', async (req, res) => {
       { new: true }
     );
     if (!item) return res.status(404).json({ error: 'Item not found' });
+    await logActivity({ board: item.board, item: item._id, type: 'item_restored', message: `${item.name} restaurado de la papelera` });
     res.json(item);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -244,6 +295,7 @@ router.delete('/:id', async (req, res) => {
       { new: true }
     );
     if (!item) return res.status(404).json({ error: 'Item not found' });
+    await logActivity({ board: item.board, item: item._id, type: 'item_trashed', message: `${item.name} movido a papelera` });
     res.json({ message: 'Item moved to trash', item });
   } catch (err) {
     res.status(500).json({ error: err.message });
