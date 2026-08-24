@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getAccountInventory } = require('../services/mondayReadOnlyClient');
+const { getAccountInventory, getBoardSnapshot } = require('../services/mondayReadOnlyClient');
 
 // This router is intentionally read-only with respect to Monday.
 // It can inspect/preview source data, but it never sends a mutation to Monday.
@@ -33,6 +33,18 @@ router.get('/preview', async (req, res) => {
         name: board.name,
         workspace: board.workspace
       }))
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message, readOnly: true });
+  }
+});
+
+router.get('/preview/board/:mondayBoardId', async (req, res) => {
+  try {
+    const snapshot = await getBoardSnapshot(req.params.mondayBoardId);
+    res.json({
+      ...snapshot,
+      policy: 'Monday is read-only. This endpoint only reads a snapshot.'
     });
   } catch (err) {
     res.status(500).json({ error: err.message, readOnly: true });
