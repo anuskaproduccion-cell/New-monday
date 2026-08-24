@@ -28,6 +28,7 @@ jobs:
           node --check models/StagingItem.js
           node --check models/ExcelRecoveryRun.js
           node --check routes/workspaces.js
+          node --check routes/views.js
           node --check routes/boards.js
           node --check routes/items.js
           node --check routes/itemOrdering.js
@@ -47,3 +48,4 @@ jobs:
           node --check public/js/app-v2.js
           node --check public/js/app-v2-dnd.js
           node --check public/js/app-v2-backup.js
+          node --check public/js/app-v2-query.js
