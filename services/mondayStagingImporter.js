@@ -4,6 +4,7 @@ const StagingBoard = require('../models/StagingBoard');
 const StagingItem = require('../models/StagingItem');
 const { getAccountInventory, getBoardSnapshot } = require('./mondayReadOnlyClient');
 const { normalizeColumnValues } = require('./mondayNormalizer');
+const { fingerprint, boardSchemaPayload, boardDataFingerprint } = require('./stagingFingerprint');
 
 function parseSettings(value) {
   if (!value) return {};
@@ -11,7 +12,7 @@ function parseSettings(value) {
 }
 
 function normalizedBoardMetadata(board, importRunId) {
-  return {
+  const normalized = {
     importRun: importRunId,
     mondayId: String(board.id),
     workspaceMondayId: board.workspace?.id ? String(board.workspace.id) : null,
@@ -42,10 +43,13 @@ function normalizedBoardMetadata(board, importRunId) {
       order
     })),
     sourceUpdatedAt: board.updated_at ? new Date(board.updated_at) : null,
+    sourceDataHash: '',
     rawMeta: {
       readOnlySource: true
     }
   };
+  normalized.sourceSchemaHash = fingerprint(boardSchemaPayload(normalized));
+  return normalized;
 }
 
 function stagedParentItem(item, boardMondayId, importRunId, order) {
@@ -90,6 +94,52 @@ function stagedSubitem(subitem, parent, boardMondayId, importRunId, order) {
   };
 }
 
+async function calculateFingerprintAudit(runId) {
+  const boards = await StagingBoard.find({ importRun: runId }).lean();
+  const mismatchedBoards = [];
+  let schemaMatches = 0;
+  let dataMatches = 0;
+  let dataChecked = 0;
+
+  for (const board of boards) {
+    const stagedSchemaHash = fingerprint(boardSchemaPayload(board));
+    const schemaOk = Boolean(board.sourceSchemaHash) && board.sourceSchemaHash === stagedSchemaHash;
+    if (schemaOk) schemaMatches += 1;
+
+    let dataOk = true;
+    let stagedDataHash = '';
+    if (!board.internal) {
+      dataChecked += 1;
+      const items = await StagingItem.find({ importRun: runId, boardMondayId: board.mondayId }).lean();
+      stagedDataHash = boardDataFingerprint(items);
+      dataOk = Boolean(board.sourceDataHash) && board.sourceDataHash === stagedDataHash;
+      if (dataOk) dataMatches += 1;
+    }
+
+    if (!schemaOk || !dataOk) {
+      mismatchedBoards.push({
+        mondayId: board.mondayId,
+        name: board.name,
+        schemaOk,
+        dataOk,
+        sourceSchemaHash: board.sourceSchemaHash,
+        stagedSchemaHash,
+        sourceDataHash: board.sourceDataHash,
+        stagedDataHash
+      });
+    }
+  }
+
+  return {
+    ok: mismatchedBoards.length === 0,
+    boardCount: boards.length,
+    schemaMatches,
+    dataChecked,
+    dataMatches,
+    mismatchedBoards
+  };
+}
+
 async function calculateAudit(runId, sourceCounts = {}) {
   const [workspaces, boards, visibleBoards, internalBoards, items, subitems] = await Promise.all([
     StagingWorkspace.countDocuments({ importRun: runId }),
@@ -109,12 +159,14 @@ async function calculateAudit(runId, sourceCounts = {}) {
     items: sourceCounts.items === undefined || sourceCounts.items === items,
     subitems: sourceCounts.subitems === undefined || sourceCounts.subitems === subitems
   };
+  const fingerprints = await calculateFingerprintAudit(runId);
 
   return {
     stagedCounts,
     audit: {
-      ok: Object.values(checks).every(Boolean),
+      ok: Object.values(checks).every(Boolean) && fingerprints.ok,
       checks,
+      fingerprints,
       sourceCounts,
       stagedCounts
     }
@@ -184,9 +236,16 @@ async function executeStagingImport(runId) {
 
       sourceCounts.items += snapshot.counts.items;
       sourceCounts.subitems += snapshot.counts.subitems;
+      const sourceDataHash = boardDataFingerprint([...parentDocs, ...subitemDocs]);
       await StagingBoard.findOneAndUpdate(
         { importRun: run._id, mondayId: String(sourceBoard.id) },
-        { $set: { counts: snapshot.counts, sourceUpdatedAt: snapshot.board.updated_at ? new Date(snapshot.board.updated_at) : null } }
+        {
+          $set: {
+            counts: snapshot.counts,
+            sourceDataHash,
+            sourceUpdatedAt: snapshot.board.updated_at ? new Date(snapshot.board.updated_at) : null
+          }
+        }
       );
 
       run.sourceCounts = sourceCounts;
@@ -206,7 +265,7 @@ async function executeStagingImport(runId) {
     run.status = auditResult.audit.ok ? 'completed' : 'failed';
     run.completedAt = new Date();
     run.progress = { phase: 'complete', boardIndex: inventory.visibleBoards.length, boardTotal: inventory.visibleBoards.length };
-    if (!auditResult.audit.ok) run.error = 'Staging count audit failed. No production data was changed.';
+    if (!auditResult.audit.ok) run.error = 'Staging audit failed. No production data was changed.';
     await run.save();
     return run;
   } catch (error) {
@@ -249,6 +308,7 @@ module.exports = {
   executeStagingImport,
   getStagingRun,
   calculateAudit,
+  calculateFingerprintAudit,
   normalizedBoardMetadata,
   stagedParentItem,
   stagedSubitem
