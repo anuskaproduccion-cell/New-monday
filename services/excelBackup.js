@@ -65,7 +65,10 @@ function legacyValue(item, column) {
     case 'person': return item.person || '';
     case 'status': return item.status || '';
     case 'timeline': return [item.startDate, item.endDate].filter(Boolean).map(date => new Date(date).toISOString().slice(0, 10)).join(' → ');
-    case 'formula': return item.formula ?? '';
+    // Item.formula has a legacy schema default of 0. Treat that implicit default as
+    // "no legacy value" so a missing dynamic Formula cell is not exported as an
+    // apparent manual edit and then rejected by recovery as read-only tampering.
+    case 'formula': return item.formula === 0 ? '' : (item.formula ?? '');
     case 'dependency': return item.dependency || '';
     case 'world_clock': return item.extraFields?.timezone || '';
     case 'overlap': return item.extraFields?.overlapWeeks ?? '';
@@ -312,6 +315,7 @@ module.exports = {
   displayColumnValue,
   statusLabels,
   dropdownLabels,
+  legacyValue,
   buildEmergencyWorkbook,
   buildEmergencyWorkbookBuffer
 };
