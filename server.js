@@ -27,6 +27,7 @@ if (!MONGODB_URI) {
 }
 
 const workspacesRouter = require('./routes/workspaces');
+const viewsRouter = require('./routes/views');
 const boardsRouter = require('./routes/boards');
 const itemsRouter = require('./routes/items');
 const itemOrderingRouter = require('./routes/itemOrdering');
@@ -36,6 +37,7 @@ const mondayImportRouter = require('./routes/mondayImport');
 const backupsRouter = require('./routes/backups');
 
 app.use('/api/workspaces', workspacesRouter);
+app.use('/api/boards', viewsRouter);
 app.use('/api/boards', boardsRouter);
 app.use('/api/items', itemsRouter);
 app.use('/api/item-ordering', itemOrderingRouter);
