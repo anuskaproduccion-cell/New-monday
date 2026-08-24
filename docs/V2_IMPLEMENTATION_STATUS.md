@@ -48,6 +48,8 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 - Vista `Actividad` del tablero con historial de acciones locales.
 - Vistas dedicadas `Archivo` y `Papelera`, ambas con restauración.
 - Navegación de celdas con flechas y Enter.
+- Selección rectangular de celdas mediante arrastre, Shift+clic y Shift+flechas.
+- Copia de rangos seleccionados como TSV compatible con Excel y Google Sheets.
 - Copiar una celda y pegar valores escalares soportados desde el portapapeles; columnas calculadas/relacionales quedan protegidas.
 - Pegado de rangos tabulados desde Excel/Sheets/TSV sobre varias filas y columnas a partir de la celda activa, con validación por tipo y omisión segura de columnas de solo lectura.
 - Crear columnas dinámicas desde la interfaz para Texto, Números, Estado, Personas, Cronograma, Fecha, Reloj mundial, Dropdown, Email y Enlace.
@@ -99,13 +101,12 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 - Resolver edición segura de columnas relacionales en recuperación si se decide soportarla.
 - Ampliar historial local para cubrir todas las operaciones de grupos/columnas y cambios masivos.
 - Añadir reordenación visual de pestañas/vistas y más tipos de vista.
-- Añadir selección rectangular/copiar rangos desde New Monday, además del pegado tabulado ya implementado.
 - Completar opciones avanzadas específicas de columnas relacionales/calculadas.
 - Hacer pruebas funcionales de navegador y auditoría visual final frente a Monday, siempre en modo consulta.
 
 ## Estado de validación
 
-GitHub Actions ejecuta `npm test` y validaciones de sintaxis del backend, servicios, scripts y frontend v2. Los tests de Excel, recuperación y sincronización Drive están incluidos en CI. La gestión avanzada de columnas y el pegado de rangos están incluidos en las comprobaciones de sintaxis del workflow.
+GitHub Actions ejecuta `npm test` y validaciones de sintaxis del backend, servicios, scripts y frontend v2. Los tests de Excel, recuperación y sincronización Drive están incluidos en CI. La gestión avanzada de columnas, el pegado de rangos y la selección rectangular forman parte del bloque validado por el workflow.
 
 ## Producción
 
