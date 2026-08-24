@@ -10,6 +10,6 @@ Safety conditions:
 
 Previous retries validated the isolated database and exposed two source-read edge cases: transient non-JSON responses and API throttling. The read-only client now retries transient failures, and the explicit STAGING job allows a bounded server-requested wait of up to 90 seconds while refusing long daily-limit waits.
 
-This commit explicitly requests a new isolated STAGING run after those safeguards were validated by CI.
+Retry requested again at 2026-08-24T17:52+01:00 after allowing the Monday API rate limit to cool down. Acceptance remains exact: 17 workspaces / 103 boards / 55 visible / 48 internal / 1230 items / 413 subitems, 103/103 schema fingerprints and 55/55 data fingerprints, with Monday mutations = 0 and production writes = 0.
 
 This marker exists only to provide an explicit, auditable trigger commit for the isolated STAGING workflow.
