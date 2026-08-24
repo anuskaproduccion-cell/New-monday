@@ -18,7 +18,14 @@ const stagingBoardSchema = new mongoose.Schema({
   sourceSchemaHash: { type: String, default: '' },
   sourceDataHash: { type: String, default: '' },
   rawMeta: { type: mongoose.Schema.Types.Mixed, default: {} }
-}, { timestamps: true });
+}, {
+  timestamps: true,
+  // Monday Mirror settings can legitimately contain empty objects such as
+  // displayed_column: {}. Mongoose's default minimization would remove those
+  // values during persistence and make the post-write schema fingerprint differ
+  // even though the source schema was imported correctly.
+  minimize: false
+});
 
 stagingBoardSchema.index({ importRun: 1, mondayId: 1 }, { unique: true });
 stagingBoardSchema.index({ importRun: 1, workspaceMondayId: 1 });
