@@ -54,8 +54,22 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 - Copiar una celda y pegar valores escalares soportados desde el portapapeles; columnas calculadas/relacionales quedan protegidas.
 - Pegado de rangos tabulados desde Excel/Sheets/TSV sobre varias filas y columnas a partir de la celda activa, con validación por tipo y omisión segura de columnas de solo lectura.
 - Crear columnas dinámicas desde la interfaz para Texto, Números, Estado, Personas, Cronograma, Fecha, Reloj mundial, Dropdown, Email y Enlace.
+- Crear/configurar columnas `Dependencia`, `Conectar tableros`, `Espejo` y `Fórmula` dentro de New Monday.
+- `Conectar tableros` permite elegir el tablero destino y enlaces simples o múltiples; trabaja solo contra datos locales de New Monday.
+- `Espejo` permite elegir la columna de relación y la columna destino, y recalcula la visualización localmente a partir del elemento vinculado.
+- `Dependencia` permite configurar la columna temporal y los modos `strict` o `no_action`; `strict` usa el motor de cascada local.
+- `Fórmula` permite configurar la plantilla usada realmente en la cuenta auditada: semanas laborables del Cronograma menos Solape.
+- Las configuraciones relacionales conservan también las claves compatibles con los `settings_str` observados en Monday para facilitar la importación y trazabilidad.
 - Gestión de columnas: renombrar, descripción, fijar/desfijar, ocultar/mostrar y configurar etiquetas de Estado/Dropdown.
 - Botones `Respaldo Excel` y `Recuperar Excel`.
+
+### Referencia Monday comprobada en modo lectura
+
+- `GY_POST`: la columna Dependencia usa `dependency_mode: strict`, permite múltiples elementos y apunta al propio tablero.
+- `GY_POST`: la fórmula real es el patrón `MAX(ROUNDDOWN(WORKDAYS(...)/5,0)-{Solape},0)`.
+- `GY_EDITING ASSISTANCE`: `Conectar tableros` apunta a `GY_SHOOTING` y no permite múltiples elementos.
+- `GY_EDITING ASSISTANCE`: `Material Disponible` es una columna Mirror ligada a la columna de relación y refleja una columna del tablero conectado.
+- Estas comprobaciones se realizaron exclusivamente mediante consultas de lectura.
 
 ### Migración segura desde Monday
 
@@ -99,15 +113,15 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 - Probar una recuperación completa Excel → preview → apply contra una base MongoDB de prueba.
 - Configurar una cuenta de servicio de Google, compartir con ella la carpeta `NEW MONDAY` y verificar la primera copia real en Drive.
 - Crear el Cron Job de Render después de validar manualmente la sincronización.
-- Resolver edición segura de columnas relacionales en recuperación si se decide soportarla.
+- Resolver edición segura de columnas relacionales en recuperación Excel si se decide soportarla.
 - Completar historial para algunas acciones masivas y operaciones especiales.
 - Añadir reordenación visual de pestañas/vistas y más tipos de vista.
-- Completar opciones avanzadas específicas de columnas relacionales/calculadas.
+- Añadir soporte de modo de dependencia `flexible` si aparece en los tableros operativos que realmente se usen.
 - Hacer pruebas funcionales de navegador y auditoría visual final frente a Monday, siempre en modo consulta.
 
 ## Estado de validación
 
-GitHub Actions ejecuta `npm test` y validaciones de sintaxis del backend, servicios, scripts y frontend v2. Los tests de Excel, recuperación y sincronización Drive están incluidos en CI. La gestión avanzada de columnas, el pegado/copia de rangos, la selección rectangular y el historial de grupos/columnas forman parte del bloque validado por el workflow.
+GitHub Actions ejecuta `npm test` y validaciones de sintaxis del backend, servicios, scripts y frontend v2. Los tests de Excel, recuperación y sincronización Drive están incluidos en CI. La gestión avanzada de columnas, el pegado/copia de rangos, la selección rectangular, el historial de grupos/columnas y el módulo relacional/calculado forman parte del workflow.
 
 ## Producción
 
