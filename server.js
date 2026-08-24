@@ -35,6 +35,8 @@ const crewRouter = require('./routes/crew');
 const seedRouter = require('./routes/seed');
 const mondayImportRouter = require('./routes/mondayImport');
 const backupsRouter = require('./routes/backups');
+const updatesRouter = require('./routes/updates');
+const activityRouter = require('./routes/activity');
 
 app.use('/api/workspaces', workspacesRouter);
 app.use('/api/boards', viewsRouter);
@@ -45,6 +47,8 @@ app.use('/api/crew', crewRouter);
 app.use('/api/seed', seedRouter);
 app.use('/api/import/monday', mondayImportRouter);
 app.use('/api/backups', backupsRouter);
+app.use('/api/updates', updatesRouter);
+app.use('/api/activity', activityRouter);
 
 app.get('/api/health', (req, res) => {
   const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
