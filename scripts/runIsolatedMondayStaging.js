@@ -16,7 +16,20 @@ function databaseNameFromMongoUri(uri) {
     const parsed = new URL(uri);
     return decodeURIComponent((parsed.pathname || '').replace(/^\//, '').split('/')[0] || '');
   } catch (error) {
-    throw new Error('MONGODB_STAGING_URI is not a valid MongoDB URI');
+    throw new Error('MongoDB URI is not valid');
+  }
+}
+
+function normalizedMongoTarget(uri) {
+  try {
+    const parsed = new URL(uri);
+    return {
+      protocol: parsed.protocol.toLowerCase(),
+      host: parsed.host.toLowerCase(),
+      databaseName: databaseNameFromMongoUri(uri).toLowerCase()
+    };
+  } catch (error) {
+    throw new Error('MongoDB URI is not valid');
   }
 }
 
@@ -25,17 +38,28 @@ function assertIsolatedStagingEnvironment(env = process.env) {
   if (!stagingUri) throw new Error('MONGODB_STAGING_URI is required');
   if (!env.MONDAY_API_TOKEN) throw new Error('MONDAY_API_TOKEN is required for read-only source queries');
 
+  const stagingTarget = normalizedMongoTarget(stagingUri);
   const productionUri = env.MONGODB_URI;
-  if (productionUri && productionUri.trim() === stagingUri.trim()) {
-    throw new Error('Safety block: staging URI is identical to the production MONGODB_URI');
+
+  if (!stagingTarget.databaseName || !/(staging|test|sandbox)/i.test(stagingTarget.databaseName)) {
+    throw new Error(`Safety block: isolated database name must contain staging/test/sandbox; received “${stagingTarget.databaseName || '(empty)'}”`);
   }
 
-  const databaseName = databaseNameFromMongoUri(stagingUri);
-  if (!databaseName || !/(staging|test|sandbox)/i.test(databaseName)) {
-    throw new Error(`Safety block: isolated database name must contain staging/test/sandbox; received “${databaseName || '(empty)'}”`);
+  if (productionUri) {
+    const productionTarget = normalizedMongoTarget(productionUri);
+    if (productionUri.trim() === stagingUri.trim()) {
+      throw new Error('Safety block: staging URI is identical to the production MONGODB_URI');
+    }
+    if (
+      productionTarget.protocol === stagingTarget.protocol
+      && productionTarget.host === stagingTarget.host
+      && productionTarget.databaseName === stagingTarget.databaseName
+    ) {
+      throw new Error('Safety block: staging resolves to the same MongoDB database as production');
+    }
   }
 
-  return { stagingUri, databaseName };
+  return { stagingUri, databaseName: stagingTarget.databaseName };
 }
 
 function baselineDiff(sourceCounts = {}) {
@@ -47,8 +71,8 @@ function baselineDiff(sourceCounts = {}) {
   return differences;
 }
 
-async function main() {
-  const { stagingUri, databaseName } = assertIsolatedStagingEnvironment();
+async function runIsolatedStaging(env = process.env) {
+  const { stagingUri, databaseName } = assertIsolatedStagingEnvironment(env);
   await mongoose.connect(stagingUri);
 
   const run = await new ImportRun({
@@ -89,23 +113,30 @@ async function main() {
   if (completed.status !== 'completed') throw new Error(completed.error || 'STAGING import did not complete');
   if (completed.audit?.ok !== true) throw new Error('STAGING audit failed');
   if (differences.length) throw new Error(`Source baseline changed: ${JSON.stringify(differences)}`);
+  return result;
+}
+
+async function main() {
+  try {
+    await runIsolatedStaging(process.env);
+  } finally {
+    await mongoose.disconnect().catch(() => {});
+  }
 }
 
 if (require.main === module) {
-  main()
-    .catch(error => {
-      console.error('Isolated STAGING failed:', error.message);
-      process.exitCode = 1;
-    })
-    .finally(async () => {
-      await mongoose.disconnect().catch(() => {});
-    });
+  main().catch(error => {
+    console.error('Isolated STAGING failed:', error.message);
+    process.exitCode = 1;
+  });
 }
 
 module.exports = {
   BASELINE,
   databaseNameFromMongoUri,
+  normalizedMongoTarget,
   assertIsolatedStagingEnvironment,
   baselineDiff,
+  runIsolatedStaging,
   main
 };
