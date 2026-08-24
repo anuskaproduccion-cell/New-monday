@@ -79,7 +79,7 @@ function setByKey(row, headers, key, value) {
   row.getCell(column).value = value;
 }
 
-async function editHappyPathWorkbook(buffer, boardId, itemId, names) {
+async function editHappyPathWorkbook(buffer, boardId, itemId, archiveItemId, trashItemId, names) {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
   const sheetName = boardSheetName(workbook, boardId);
@@ -93,6 +93,12 @@ async function editHappyPathWorkbook(buffer, boardId, itemId, names) {
   setByKey(existingRow, headers, 'notes', 'Editado sin conexión');
   setByKey(existingRow, headers, 'effort', 2.5);
   setByKey(existingRow, headers, 'category', 'B');
+
+  const archiveRow = sheet.getRow(findItemRow(sheet, headers, archiveItemId));
+  setByKey(archiveRow, headers, '_ACTION', 'ARCHIVAR');
+
+  const trashRow = sheet.getRow(findItemRow(sheet, headers, trashItemId));
+  setByKey(trashRow, headers, '_ACTION', 'PAPELERA');
 
   const parentRow = sheet.getRow(sheet.rowCount + 1);
   setByKey(parentRow, headers, 'name', names.parent);
@@ -128,6 +134,17 @@ async function editConflictWorkbook(buffer, boardId, itemId) {
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
 
+async function editReadOnlyFormulaWorkbook(buffer, boardId, itemId) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+  const sheetName = boardSheetName(workbook, boardId);
+  const sheet = workbook.getWorksheet(sheetName);
+  const headers = technicalHeaders(sheet);
+  const row = sheet.getRow(findItemRow(sheet, headers, itemId));
+  setByKey(row, headers, 'formula', 999);
+  return Buffer.from(await workbook.xlsx.writeBuffer());
+}
+
 async function runRecoverySmoke(env = process.env) {
   const { stagingUri, databaseName } = assertIsolatedRecoveryEnvironment(env);
   await mongoose.connect(stagingUri);
@@ -142,6 +159,8 @@ async function runRecoverySmoke(env = process.env) {
   let workspace = null;
   let board = null;
   let original = null;
+  let archiveItem = null;
+  let trashItem = null;
   const recoveryRunIds = [];
   let passed = false;
 
@@ -174,6 +193,10 @@ async function runRecoverySmoke(env = process.env) {
         {
           id: 'category', title: 'Categoría', type: 'dropdown', order: 4,
           settings: { labels: [{ name: 'A' }, { name: 'B' }] }
+        },
+        {
+          id: 'formula', title: 'Fórmula', type: 'formula', order: 5,
+          settings: { formula: 'MAX(ROUNDDOWN(WORKDAYS({timeline#End},{timeline#Start})/5,0),0)' }
         }
       ],
       views: [{ id: 'main', name: 'Tabla principal', type: 'table', order: 0 }],
@@ -194,7 +217,8 @@ async function runRecoverySmoke(env = process.env) {
         timeline: { type: 'timeline', text: '2026-09-01 → 2026-09-05', from: '2026-09-01', to: '2026-09-05' },
         notes: { type: 'text', text: 'Antes del backup', value: 'Antes del backup' },
         effort: { type: 'numbers', text: '1', value: 1 },
-        category: { type: 'dropdown', text: 'A', labels: ['A'] }
+        category: { type: 'dropdown', text: 'A', labels: ['A'] },
+        formula: { type: 'formula', text: '1', displayValue: '1', value: 1 }
       },
       originMeta: { smokeTestId: smokeId }
     });
@@ -216,25 +240,62 @@ async function runRecoverySmoke(env = process.env) {
       originMeta: { smokeTestId: smokeId }
     });
 
+    archiveItem = await Item.create({
+      board: board._id,
+      groupId: 'online',
+      group: 'ONLINE',
+      groupColor: '#9d50dd',
+      name: 'Elemento para archivar',
+      order: 1,
+      source: 'local',
+      isSubitem: false,
+      columnValues: { notes: { type: 'text', text: 'Archivar offline', value: 'Archivar offline' } },
+      originMeta: { smokeTestId: smokeId }
+    });
+
+    trashItem = await Item.create({
+      board: board._id,
+      groupId: 'online',
+      group: 'ONLINE',
+      groupColor: '#9d50dd',
+      name: 'Elemento para papelera',
+      order: 2,
+      source: 'local',
+      isSubitem: false,
+      columnValues: { notes: { type: 'text', text: 'Papelera offline', value: 'Papelera offline' } },
+      originMeta: { smokeTestId: smokeId }
+    });
+
     const initialBackup = await buildEmergencyWorkbookBuffer();
-    const editedBuffer = await editHappyPathWorkbook(initialBackup.buffer, board._id, original._id, names);
+    const editedBuffer = await editHappyPathWorkbook(
+      initialBackup.buffer,
+      board._id,
+      original._id,
+      archiveItem._id,
+      trashItem._id,
+      names
+    );
     const preview = await buildRecoveryPreview(editedBuffer, { sourceFilename: `${smokeId}-happy.xlsx` });
     recoveryRunIds.push(preview.runId);
 
     assert.strictEqual(preview.status, 'previewed', `Happy-path preview blocked: ${JSON.stringify(preview.conflicts)}`);
     assert.strictEqual(preview.conflicts.length, 0, 'Happy-path recovery preview must have zero conflicts');
-    assert.strictEqual(preview.summary.updates, 1, 'Expected one existing item update');
+    assert.strictEqual(preview.summary.updates, 3, 'Expected one edited item plus archive and trash updates');
     assert.strictEqual(preview.summary.creates, 1, 'Expected one new parent item');
     assert.strictEqual(preview.summary.newSubitems, 1, 'Expected one new subitem');
+    assert.strictEqual(preview.summary.archiveActions, 1, 'Expected one archive action');
+    assert.strictEqual(preview.summary.trashActions, 1, 'Expected one trash action');
     assert.ok(preview.confirmationRequired, 'Recovery preview must require explicit confirmation');
     assert.strictEqual(preview.mondayWriteOperations, 0);
 
     const applyResult = await applyRecoveryRun(preview.runId, preview.confirmationRequired);
     assert.strictEqual(applyResult.status, 'applied');
     assert.strictEqual(applyResult.mondayWriteOperations, 0);
-    assert.strictEqual(applyResult.applied.updated, 1);
+    assert.strictEqual(applyResult.applied.updated, 3);
     assert.strictEqual(applyResult.applied.created, 1);
     assert.strictEqual(applyResult.applied.subitems, 1);
+    assert.strictEqual(applyResult.applied.archived, 1);
+    assert.strictEqual(applyResult.applied.trashed, 1);
 
     const refreshed = await Item.findById(original._id).lean();
     assert.strictEqual(refreshed.columnValues.status.label, 'Done');
@@ -244,11 +305,31 @@ async function runRecoverySmoke(env = process.env) {
     assert.strictEqual(refreshed.columnValues.effort.value, 2.5);
     assert.deepStrictEqual(refreshed.columnValues.category.labels, ['B']);
 
+    const archived = await Item.findById(archiveItem._id).lean();
+    const trashed = await Item.findById(trashItem._id).lean();
+    assert.strictEqual(archived.archived, true, 'ARCHIVAR must mark the item archived');
+    assert.ok(trashed.deletedAt, 'PAPELERA must set deletedAt');
+
     const createdParent = await Item.findOne({ board: board._id, name: names.parent, isSubitem: false }).lean();
     const createdSubitem = await Item.findOne({ board: board._id, name: names.subitem, isSubitem: true }).lean();
     assert.ok(createdParent, 'Offline-created parent item was not restored');
     assert.ok(createdSubitem, 'Offline-created subitem was not restored');
     assert.strictEqual(String(createdSubitem.parentItem), String(createdParent._id));
+
+    // Formula is intentionally read-only in manual Excel recovery.
+    const readOnlyBackup = await buildEmergencyWorkbookBuffer();
+    const readOnlyBuffer = await editReadOnlyFormulaWorkbook(readOnlyBackup.buffer, board._id, original._id);
+    const readOnlyPreview = await buildRecoveryPreview(readOnlyBuffer, { sourceFilename: `${smokeId}-readonly.xlsx` });
+    recoveryRunIds.push(readOnlyPreview.runId);
+    assert.strictEqual(readOnlyPreview.status, 'blocked');
+    assert.ok(
+      readOnlyPreview.conflicts.some(conflict => conflict.code === 'read_only_column_edited' && conflict.columnId === 'formula'),
+      'Editing a Formula cell must block recovery'
+    );
+    assert.strictEqual(readOnlyPreview.confirmationRequired, null);
+
+    const afterReadOnlyAttempt = await Item.findById(original._id).lean();
+    assert.notStrictEqual(String(afterReadOnlyAttempt.columnValues.formula?.displayValue || ''), '999');
 
     // Conflict protection: create a fresh backup, edit it offline, then change the same item in New Monday.
     const conflictBackup = await buildEmergencyWorkbookBuffer();
@@ -281,6 +362,9 @@ async function runRecoverySmoke(env = process.env) {
       previewApplyVerified: true,
       offlineItemCreationVerified: true,
       offlineSubitemCreationVerified: true,
+      archiveActionVerified: true,
+      trashActionVerified: true,
+      readOnlyFormulaProtectionVerified: true,
       concurrentConflictProtectionVerified: true,
       mondayReadOnly: true,
       mondayMutations: 0,
@@ -313,5 +397,6 @@ module.exports = {
   findItemRow,
   editHappyPathWorkbook,
   editConflictWorkbook,
+  editReadOnlyFormulaWorkbook,
   runRecoverySmoke
 };
