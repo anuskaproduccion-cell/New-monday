@@ -80,6 +80,12 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 - Promoción protegida por confirmación explícita.
 - Bloqueo de conflictos contra registros locales.
 - Cero operaciones de escritura en Monday en staging, auditoría y promoción.
+- Runner `npm run staging:isolated` con guardas de aislamiento por nombre y destino MongoDB.
+- El runner bloquea URIs idénticas a producción y también URIs distintas que resuelvan al mismo host + mismo nombre de base.
+- Línea base obligatoria: 17 workspaces, 103 tableros, 55 visibles, 48 internos, 1.230 items y 413 subitems.
+- GitHub Actions tiene un preflight que solo informa si los secretos existen y nunca imprime sus valores.
+- La ejecución STAGING real desde CI está bloqueada salvo un push explícito cuyo mensaje incluya `[run-staging]`; ese paso no promociona datos y solo ejecuta el runner aislado.
+- Guía operativa en `docs/STAGING_EXECUTION_RUNBOOK.md`.
 
 ### Excel de emergencia y recuperación
 
@@ -109,6 +115,7 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 
 ## Pendiente antes de promover a `main`
 
+- Configurar de forma segura, fuera del chat, `MONGODB_STAGING_URI` y `MONDAY_API_TOKEN` para la ejecución aislada. El preflight de GitHub Actions del 2026-08-24 confirmó que actualmente ambos secretos están ausentes del repositorio; `MONGODB_URI` también está ausente allí.
 - Ejecutar una importación STAGING real y revisar la auditoría completa.
 - Probar una recuperación completa Excel → preview → apply contra una base MongoDB de prueba.
 - Configurar una cuenta de servicio de Google, compartir con ella la carpeta `NEW MONDAY` y verificar la primera copia real en Drive.
@@ -121,7 +128,7 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 
 ## Estado de validación
 
-GitHub Actions ejecuta `npm test` y validaciones de sintaxis del backend, servicios, scripts y frontend v2. Los tests de Excel, recuperación y sincronización Drive están incluidos en CI. La gestión avanzada de columnas, el pegado/copia de rangos, la selección rectangular, el historial de grupos/columnas y el módulo relacional/calculado forman parte del workflow.
+GitHub Actions ejecuta `npm test` y validaciones de sintaxis del backend, servicios, scripts y frontend v2. Los tests de Excel, recuperación, sincronización Drive y guardas de STAGING están incluidos en CI. La gestión avanzada de columnas, el pegado/copia de rangos, la selección rectangular, el historial de grupos/columnas y el módulo relacional/calculado forman parte del workflow.
 
 ## Producción
 
