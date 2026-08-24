@@ -7,6 +7,7 @@
     const host = document.getElementById('view-tabs');
     if (!host || !this.currentBoard) return;
     const extras = [
+      { id: 'activity', name: 'Actividad' },
       { id: 'archive', name: 'Archivo' },
       { id: 'trash', name: 'Papelera' }
     ];
@@ -25,9 +26,29 @@
   };
 
   app.renderCurrentView = function renderCurrentViewWithLifecycle() {
+    if (this.currentView === 'activity') return this.renderBoardActivity();
     if (this.currentView === 'archive') return this.renderLifecycleView('archive');
     if (this.currentView === 'trash') return this.renderLifecycleView('trash');
     return originalRenderCurrentView.call(this);
+  };
+
+  app.renderBoardActivity = async function renderBoardActivity() {
+    const content = document.getElementById('content');
+    if (!content || !this.currentBoard) return;
+    content.innerHTML = '<div class="loading"><span class="spinner"></span>Cargando actividad…</div>';
+    try {
+      const events = await this.api(`/api/activity/board/${this.currentBoardId()}?limit=300`);
+      const itemNames = new Map(this.items.map(item => [String(item._id), item.name]));
+      content.innerHTML = `<div class="lifecycle-shell"><div class="lifecycle-header"><div><h2>Actividad</h2><p>Historial local de cambios realizados dentro de New Monday.</p></div><span>${events.length} eventos</span></div>${events.length ? `<div class="board-activity-list">${events.map(event => {
+        let date = '';
+        try { date = new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(event.createdAt)); }
+        catch { date = String(event.createdAt || ''); }
+        const itemName = event.item ? itemNames.get(String(event.item)) : '';
+        return `<article class="board-activity-event"><span class="activity-dot"></span><div><strong>${this.escapeHtml(event.message || event.type)}</strong><span>${this.escapeHtml(itemName || '')}${itemName && event.field ? ' · ' : ''}${this.escapeHtml(event.field || '')}</span><small>${this.escapeHtml(date)}</small></div></article>`;
+      }).join('')}</div>` : '<div class="lifecycle-empty">Todavía no hay actividad local registrada.</div>'}</div>`;
+    } catch (err) {
+      content.innerHTML = `<div class="connection-error"><span>!</span><div><h2>No se pudo cargar la actividad</h2><p>${this.escapeHtml(err.message)}</p></div></div>`;
+    }
   };
 
   app.renderLifecycleView = async function renderLifecycleView(kind) {
