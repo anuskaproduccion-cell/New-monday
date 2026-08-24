@@ -49,6 +49,7 @@ jobs:
           node --check services/activityLogger.js
           node --check services/dependencyEngine.js
           node --check services/formulaEngine.js
+          node --check scripts/runIsolatedMondayStaging.js
           node --check scripts/syncBackupToDrive.js
           node --check public/js/app-v2.js
           node --check public/js/app-v2-dnd.js
