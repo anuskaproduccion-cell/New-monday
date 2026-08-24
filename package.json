@@ -6,11 +6,13 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node tests/formulaEngine.test.js && node tests/dependencyEngine.test.js && node tests/mondayNormalizer.test.js && node tests/mondayStagingImporter.test.js && node tests/mondayReadOnlyClient.test.js && node tests/stagingFingerprint.test.js && node tests/stagingPromotion.test.js && node tests/excelBackup.test.js && node tests/excelRecovery.test.js"
+    "sync:drive-backup": "node scripts/syncBackupToDrive.js",
+    "test": "node tests/formulaEngine.test.js && node tests/dependencyEngine.test.js && node tests/mondayNormalizer.test.js && node tests/mondayStagingImporter.test.js && node tests/mondayReadOnlyClient.test.js && node tests/stagingFingerprint.test.js && node tests/stagingPromotion.test.js && node tests/excelBackup.test.js && node tests/excelRecovery.test.js && node tests/driveBackup.test.js"
   },
   "dependencies": {
     "exceljs": "^4.4.0",
     "express": "^4.18.2",
+    "googleapis": "^144.0.0",
     "mongoose": "^7.6.3"
   }
 }
