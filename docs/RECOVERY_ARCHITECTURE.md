@@ -71,10 +71,26 @@ La rama v2 incluye dos controles en la barra lateral:
 - `Respaldo Excel`: genera y descarga el backup operativo.
 - `Recuperar Excel`: analiza el archivo, muestra conflictos o un resumen y exige escribir `RECUPERAR` antes de aplicar.
 
+## Copia automática en Google Drive
+
+Está implementado `services/driveBackup.js` y el comando `npm run sync:drive-backup`.
+
+El sincronizador:
+
+1. genera el mismo Excel recuperable desde New Monday;
+2. crea o reemplaza `NEW_MONDAY_BACKUP.xlsx` dentro de la carpeta configurada;
+3. crea `NEW_MONDAY_BACKUP_YYYY-MM-DD.xlsx` una sola vez por fecha;
+4. usa una cuenta de servicio de Google con acceso únicamente a la carpeta compartida;
+5. no necesita `MONDAY_API_TOKEN` y no consulta ni escribe Monday;
+6. registra explícitamente `mondayWriteOperations: 0`.
+
+La configuración y las credenciales no se guardan en el repositorio. Deben almacenarse como variables secretas de Render. La guía está en `docs/DRIVE_BACKUP_SETUP.md`.
+
 ## Pendiente antes de producción
 
 - Ejecutar una importación STAGING real y revisar el informe de auditoría.
 - Probar una recuperación completa Excel → preview → apply en un entorno de prueba con MongoDB real.
-- Conectar la generación del Excel con la carpeta NEW MONDAY de Google Drive para mantener una copia actual y snapshots históricos.
+- Configurar la cuenta de servicio de Google, compartir la carpeta NEW MONDAY y probar la primera escritura real del backup en Drive.
+- Crear el Cron Job de Render después de validar manualmente la sincronización.
 - Ampliar recuperación de columnas relacionales cuando esté validado el modelo de resolución sin ambigüedades.
 - No fusionar v2 a `main` hasta terminar esas pruebas.
