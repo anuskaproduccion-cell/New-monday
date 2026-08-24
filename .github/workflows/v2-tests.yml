@@ -22,6 +22,10 @@ jobs:
           node --check models/Workspace.js
           node --check models/Board.js
           node --check models/Item.js
+          node --check models/ImportRun.js
+          node --check models/StagingWorkspace.js
+          node --check models/StagingBoard.js
+          node --check models/StagingItem.js
           node --check routes/workspaces.js
           node --check routes/boards.js
           node --check routes/items.js
@@ -29,6 +33,7 @@ jobs:
           node --check routes/mondayImport.js
           node --check services/mondayReadOnlyClient.js
           node --check services/mondayNormalizer.js
+          node --check services/mondayStagingImporter.js
           node --check services/dependencyEngine.js
           node --check services/formulaEngine.js
           node --check public/js/app-v2.js
