@@ -6,6 +6,7 @@ const StagingItem = require('../models/StagingItem');
 const StagingWorkspace = require('../models/StagingWorkspace');
 const { getAccountInventory, getBoardSnapshot } = require('../services/mondayReadOnlyClient');
 const { startStagingImport, calculateAudit } = require('../services/mondayStagingImporter');
+const { buildPromotionPreview, promoteStagingRun } = require('../services/stagingPromotion');
 
 // Absolute project rule:
 // Monday is a source/reference only. This router may read Monday, but never write to it.
@@ -140,6 +141,26 @@ router.get('/staging/runs/:runId/boards/:mondayBoardId/items', async (req, res) 
     res.json(items);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Safe promotion is a New Monday-only operation. It never contacts Monday.
+// Preview must be green before promotion; local records are never deleted.
+router.get('/staging/runs/:runId/promotion-preview', async (req, res) => {
+  try {
+    const preview = await buildPromotionPreview(req.params.runId);
+    res.json(preview);
+  } catch (err) {
+    res.status(400).json({ error: err.message, mondayReadOnly: true, productionDeletes: 0 });
+  }
+});
+
+router.post('/staging/runs/:runId/promote', async (req, res) => {
+  try {
+    const result = await promoteStagingRun(req.params.runId, req.body?.confirmation);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message, mondayReadOnly: true, mondayMutations: 0 });
   }
 });
 
