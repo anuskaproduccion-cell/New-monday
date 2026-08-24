@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const Board = require('../models/Board');
 const Item = require('../models/Item');
 const { cascadeStrictDependencies, timelineDeltaDays } = require('../services/dependencyEngine');
+const { recalculateAndSaveItem } = require('../services/formulaEngine');
 
 function activeItemQuery(extra = {}) {
   return {
@@ -68,6 +70,13 @@ router.patch('/:id/columns/:columnId', async (req, res) => {
       return res.status(400).json({ error: 'value is required' });
     }
 
+    const board = await Board.findById(item.board);
+    if (!board) return res.status(404).json({ error: 'Board not found' });
+    const column = board.columns.find(entry => entry.id === req.params.columnId);
+    if (column?.type === 'formula') {
+      return res.status(400).json({ error: 'Formula columns are calculated and cannot be edited directly' });
+    }
+
     const values = { ...(item.columnValues || {}) };
     const previousValue = values[req.params.columnId] || null;
     const nextValue = req.body.value;
@@ -75,8 +84,9 @@ router.patch('/:id/columns/:columnId', async (req, res) => {
     item.columnValues = values;
     item.markModified('columnValues');
     await item.save();
+    await recalculateAndSaveItem(item);
 
-    const valueType = nextValue?.type || previousValue?.type;
+    const valueType = column?.type || nextValue?.type || previousValue?.type;
     let cascaded = [];
     if (valueType === 'timeline' || valueType === 'date') {
       const deltaDays = timelineDeltaDays(previousValue, nextValue);
@@ -111,6 +121,7 @@ router.post('/', async (req, res) => {
   try {
     const item = new Item(req.body);
     await item.save();
+    await recalculateAndSaveItem(item);
     res.status(201).json(item);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -157,6 +168,7 @@ router.post('/:id/duplicate', async (req, res) => {
     });
 
     await duplicate.save();
+    await recalculateAndSaveItem(duplicate);
     res.status(201).json(duplicate);
   } catch (err) {
     res.status(400).json({ error: err.message });
