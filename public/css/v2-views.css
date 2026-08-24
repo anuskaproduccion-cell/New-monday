@@ -1,0 +1,25 @@
+.view-tab.view-tab-draggable {
+  cursor: grab;
+  user-select: none;
+}
+
+.view-tab.view-tab-draggable:active {
+  cursor: grabbing;
+}
+
+.view-tab.view-tab-dragging {
+  opacity: 0.55;
+}
+
+.view-tab.view-tab-drop-before {
+  box-shadow: inset 3px 0 0 currentColor;
+}
+
+.view-tab.view-tab-drop-after {
+  box-shadow: inset -3px 0 0 currentColor;
+}
+
+.view-tabs.view-tabs-saving {
+  pointer-events: none;
+  opacity: 0.8;
+}
