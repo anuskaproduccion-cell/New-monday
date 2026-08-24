@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <title>New Monday · GY_GUAYOTA</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <aside class="sidebar" aria-label="Navegación principal">
+    <div class="brand"><span class="brand-mark">M</span><span>New Monday</span></div>
+    <div class="workspace-card">
+      <div class="workspace-icon">GY</div>
+      <div><strong>GY_GUAYOTA</strong><small>Postproducción</small></div>
+    </div>
+    <label class="sidebar-search"><span>⌕</span><input id="board-search" type="search" placeholder="Buscar tablero" autocomplete="off"></label>
+    <div class="sidebar-label">Tableros</div>
+    <nav id="sidebar-nav" class="sidebar-nav"></nav>
+    <div class="sidebar-footer"><span class="avatar avatar-owner">AB</span><span>Anuska Baute</span></div>
+  </aside>
+
+  <main class="main">
+    <header class="board-header">
+      <div class="board-heading">
+        <div class="board-title-row"><span id="board-icon" class="board-icon">😈</span><h1 id="board-title">GY_POST</h1><button class="star-button" title="Favorito">☆</button></div>
+        <p id="board-subtitle">Gestión de producción y postproducción</p>
+      </div>
+      <div class="header-actions">
+        <label class="global-search"><span>⌕</span><input id="global-search" type="search" placeholder="Buscar en el tablero" autocomplete="off"></label>
+        <button class="button primary" id="btn-add">＋ Nuevo elemento</button>
+      </div>
+    </header>
+
+    <div class="view-tabs" role="tablist">
+      <button class="view-tab active" data-view="board">Tabla principal</button>
+      <button class="view-tab" data-view="gantt">Cronograma</button>
+      <button class="view-tab" data-view="crew">Equipo</button>
+    </div>
+
+    <section id="content" class="content" aria-live="polite">
+      <div class="loading"><span class="spinner"></span>Cargando datos…</div>
+    </section>
+  </main>
+
+  <div id="modal-root"></div>
+  <div id="toast-root" aria-live="polite"></div>
+  <datalist id="crew-options"></datalist>
+  <script src="/js/app.js"></script>
+</body>
+</html>
