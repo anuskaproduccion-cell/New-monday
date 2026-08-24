@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Item = require('../models/Item');
+const { cascadeStrictDependencies, timelineDeltaDays } = require('../services/dependencyEngine');
 
 function activeItemQuery(extra = {}) {
   return {
@@ -54,6 +55,39 @@ router.patch('/group', async (req, res) => {
 
     await Item.updateMany(query, { $set: patch });
     res.json({ message: 'Group updated' });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.patch('/:id/columns/:columnId', async (req, res) => {
+  try {
+    const item = await Item.findOne({ _id: req.params.id, deletedAt: null });
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+    if (!Object.prototype.hasOwnProperty.call(req.body, 'value')) {
+      return res.status(400).json({ error: 'value is required' });
+    }
+
+    const values = { ...(item.columnValues || {}) };
+    const previousValue = values[req.params.columnId] || null;
+    const nextValue = req.body.value;
+    values[req.params.columnId] = nextValue;
+    item.columnValues = values;
+    item.markModified('columnValues');
+    await item.save();
+
+    const valueType = nextValue?.type || previousValue?.type;
+    let cascaded = [];
+    if (valueType === 'timeline' || valueType === 'date') {
+      const deltaDays = timelineDeltaDays(previousValue, nextValue);
+      cascaded = await cascadeStrictDependencies({
+        boardId: item.board,
+        changedItemId: item._id,
+        deltaDays
+      });
+    }
+
+    res.json({ item, cascaded });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
