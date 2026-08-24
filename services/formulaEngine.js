@@ -1,3 +1,5 @@
+const Board = require('../models/Board');
+
 function parseDateOnly(value) {
   if (!value) return null;
   const date = new Date(`${value}T00:00:00.000Z`);
@@ -94,9 +96,18 @@ function recalculateFormulaValues(board, item) {
   return changed;
 }
 
+async function recalculateAndSaveItem(item) {
+  const board = await Board.findById(item.board);
+  if (!board) return false;
+  const changed = recalculateFormulaValues(board, item);
+  if (changed) await item.save();
+  return changed;
+}
+
 module.exports = {
   workdaysInclusive,
   parseCurrentWeeksFormula,
   evaluateFormula,
-  recalculateFormulaValues
+  recalculateFormulaValues,
+  recalculateAndSaveItem
 };
