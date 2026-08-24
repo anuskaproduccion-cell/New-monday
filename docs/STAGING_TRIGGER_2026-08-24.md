@@ -8,6 +8,6 @@ Safety conditions:
 - No promotion to production is performed by this workflow.
 - The execution must match the accepted source baseline and fingerprint audit.
 
-Retry requested at 2026-08-24T17:03+01:00 after correcting `MONGODB_STAGING_URI`.
+Retry requested at 2026-08-24T17:06+01:00 after updating `MONGODB_STAGING_URI`.
 
 This marker exists only to provide an explicit, auditable trigger commit for the isolated STAGING workflow.
