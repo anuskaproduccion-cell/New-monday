@@ -92,8 +92,105 @@ async function getAccountInventory() {
   };
 }
 
+async function getBoardSnapshot(mondayBoardId) {
+  const boardIds = [String(mondayBoardId)];
+  const metadataData = await mondayQuery(`
+    query ReadBoardMetadata($boardIds: [ID!]) {
+      boards(ids: $boardIds) {
+        id
+        name
+        description
+        state
+        board_kind
+        updated_at
+        workspace { id name }
+        groups { id title color }
+        columns { id title description type settings_str }
+        views { id name type }
+      }
+    }
+  `, { boardIds });
+
+  const board = metadataData.boards?.[0];
+  if (!board) throw new Error(`Monday board ${mondayBoardId} not found`);
+
+  const items = [];
+  let cursor = null;
+  let page = 0;
+  do {
+    const data = await mondayQuery(`
+      query ReadBoardItems($boardIds: [ID!], $cursor: String) {
+        boards(ids: $boardIds) {
+          items_page(limit: 100, cursor: $cursor) {
+            cursor
+            items {
+              id
+              name
+              created_at
+              updated_at
+              group { id title color }
+              column_values {
+                id
+                type
+                text
+                value
+                ... on DependencyValue {
+                  linked_items { id name board { id name } }
+                }
+                ... on BoardRelationValue {
+                  linked_items { id name board { id name } }
+                }
+                ... on FormulaValue { display_value }
+                ... on MirrorValue { display_value }
+              }
+              subitems {
+                id
+                name
+                created_at
+                updated_at
+                column_values {
+                  id
+                  type
+                  text
+                  value
+                  ... on DependencyValue {
+                    linked_items { id name board { id name } }
+                  }
+                  ... on BoardRelationValue {
+                    linked_items { id name board { id name } }
+                  }
+                  ... on FormulaValue { display_value }
+                  ... on MirrorValue { display_value }
+                }
+              }
+            }
+          }
+        }
+      }
+    `, { boardIds, cursor });
+
+    const itemsPage = data.boards?.[0]?.items_page;
+    if (!itemsPage) break;
+    items.push(...(itemsPage.items || []));
+    cursor = itemsPage.cursor || null;
+    page += 1;
+    if (page > 1000) throw new Error('Monday item pagination safety limit reached');
+  } while (cursor);
+
+  return {
+    readOnly: true,
+    board,
+    items,
+    counts: {
+      items: items.length,
+      subitems: items.reduce((sum, item) => sum + (item.subitems?.length || 0), 0)
+    }
+  };
+}
+
 module.exports = {
   mondayQuery,
   getAccountInventory,
+  getBoardSnapshot,
   assertReadOnlyDocument
 };
