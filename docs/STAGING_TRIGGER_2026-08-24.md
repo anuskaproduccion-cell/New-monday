@@ -8,6 +8,8 @@ Safety conditions:
 - No promotion to production is performed by this workflow.
 - The execution must match the accepted source baseline and fingerprint audit.
 
-Retry requested at 2026-08-24T17:06+01:00 after updating `MONGODB_STAGING_URI`.
+Previous retries validated the isolated database and exposed two source-read edge cases: transient non-JSON responses and API throttling. The read-only client now retries transient failures, and the explicit STAGING job allows a bounded server-requested wait of up to 90 seconds while refusing long daily-limit waits.
+
+This commit explicitly requests a new isolated STAGING run after those safeguards were validated by CI.
 
 This marker exists only to provide an explicit, auditable trigger commit for the isolated STAGING workflow.
