@@ -131,9 +131,8 @@ async function cascadeStrictDependencies({ boardId, changedItemId, deltaDays }) 
         recalculateFormulaValues(board, dependent);
         await dependent.save();
         shifted.push({ itemId: String(dependent._id), columnId: timeColumn.id, deltaDays });
+        queue.push(dependent);
       }
-
-      queue.push(dependent);
     }
   }
 
