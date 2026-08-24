@@ -96,12 +96,25 @@ router.post('/:id/views/reorder', async (req, res) => {
     if (!board) return res.status(404).json({ error: 'Board not found' });
     if (!Array.isArray(req.body.viewIds)) return res.status(400).json({ error: 'viewIds must be an array' });
 
-    const positions = new Map(req.body.viewIds.map((id, index) => [String(id), index]));
+    const requested = req.body.viewIds.map(id => String(id));
+    const requestedSet = new Set(requested);
+    const existingIds = new Set(board.views.map(view => String(view.id)));
+    const invalid = requested.filter(id => !existingIds.has(id));
+    if (invalid.length) return res.status(400).json({ error: `Unknown viewIds: ${invalid.join(', ')}` });
+    if (requestedSet.size !== requested.length) return res.status(400).json({ error: 'viewIds must not contain duplicates' });
+
+    const untouched = board.views
+      .filter(view => !requestedSet.has(String(view.id)))
+      .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
+      .map(view => String(view.id));
+    const finalOrder = [...requested, ...untouched];
+    const positions = new Map(finalOrder.map((id, index) => [id, index]));
+
     board.views.forEach(view => {
-      if (positions.has(String(view.id))) view.order = positions.get(String(view.id));
+      view.order = positions.get(String(view.id));
     });
     await board.save();
-    await logActivity({ board: board._id, type: 'views_reordered', message: 'Vistas reordenadas', meta: { viewIds: req.body.viewIds } });
+    await logActivity({ board: board._id, type: 'views_reordered', message: 'Vistas reordenadas', meta: { viewIds: finalOrder } });
     res.json(board.views.sort((a, b) => Number(a.order || 0) - Number(b.order || 0)));
   } catch (err) {
     res.status(400).json({ error: err.message });
