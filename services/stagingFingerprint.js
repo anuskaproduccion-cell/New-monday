@@ -22,7 +22,9 @@ function boardSchemaPayload(board) {
   return {
     mondayId: String(board.mondayId || board.id || ''),
     workspaceMondayId: board.workspaceMondayId || board.workspace?.id || null,
+    workspaceName: board.workspaceName || board.workspace?.name || '',
     name: board.name || '',
+    description: board.description || '',
     state: board.state || '',
     boardKind: board.boardKind || board.board_kind || '',
     internal: Boolean(board.internal),
@@ -60,7 +62,8 @@ function itemPayload(item) {
     groupId: item.groupId || '',
     group: item.group || '',
     groupColor: item.groupColor || '',
-    columnValues: item.columnValues || {}
+    columnValues: item.columnValues || {},
+    sourceMeta: item.sourceMeta || {}
   };
 }
 
