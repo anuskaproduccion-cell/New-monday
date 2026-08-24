@@ -44,3 +44,4 @@ jobs:
           node --check services/formulaEngine.js
           node --check public/js/app-v2.js
           node --check public/js/app-v2-dnd.js
+          node --check public/js/app-v2-backup.js
