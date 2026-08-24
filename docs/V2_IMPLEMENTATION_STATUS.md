@@ -36,6 +36,12 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 - Drag & drop de items, grupos y columnas.
 - Gantt dinámico con movimiento y resize conectado al motor de dependencias.
 - Pestañas de vistas.
+- Filtros por múltiples condiciones sobre Elemento, Grupo y columnas dinámicas.
+- Operadores contiene/no contiene, igual/distinto, vacío/no vacío, mayor/menor y antes/después.
+- Multi-sort con prioridad de criterios.
+- Filtros y orden temporales en Tabla/Cronograma.
+- Persistencia de filtros y multi-sort en vistas guardadas.
+- Crear, renombrar, duplicar y eliminar vistas guardadas sin afectar los items del tablero.
 - Botones `Respaldo Excel` y `Recuperar Excel`.
 
 ### Migración segura desde Monday
@@ -82,15 +88,15 @@ La integración de New Monday con Monday es unidireccional y de solo lectura. El
 - Crear el Cron Job de Render después de validar manualmente la sincronización.
 - Resolver edición segura de columnas relacionales en recuperación si se decide soportarla.
 - Completar Updates/comentarios e historial local.
-- Completar filtros avanzados, multi-sort y persistencia por vista.
 - Completar copiar/pegar y navegación de teclado.
-- Completar creación/configuración de columnas y vistas.
+- Completar creación/configuración avanzada de columnas.
+- Añadir reordenación visual de pestañas/vistas y más tipos de vista.
 - Añadir Trash/Archive UI dedicada.
 - Hacer pruebas funcionales de navegador y auditoría visual final frente a Monday, siempre en modo consulta.
 
 ## Estado de validación
 
-GitHub Actions ejecuta `npm test` y validaciones de sintaxis del backend, servicios, scripts y frontend v2. Los tests de Excel, recuperación y sincronización Drive están incluidos en CI.
+GitHub Actions ejecuta `npm test` y validaciones de sintaxis del backend, servicios, scripts y frontend v2. Los tests de Excel, recuperación y sincronización Drive están incluidos en CI. El bloque de filtros, multi-sort y vistas guardadas también pasa las comprobaciones de sintaxis del workflow.
 
 ## Producción
 
