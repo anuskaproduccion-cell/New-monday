@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/v2.css">
   <link rel="stylesheet" href="/css/v2-dnd.css">
+  <link rel="stylesheet" href="/css/v2-backup.css">
 </head>
 <body>
   <aside class="sidebar" aria-label="Navegación principal">
@@ -20,6 +21,10 @@
     <label class="sidebar-search"><span>⌕</span><input id="board-search" type="search" placeholder="Buscar tablero" autocomplete="off"></label>
     <div class="sidebar-label">Tableros</div>
     <nav id="sidebar-nav" class="sidebar-nav"></nav>
+    <div class="backup-tools" aria-label="Respaldo y recuperación">
+      <button id="btn-backup-excel" class="backup-tool-button" type="button"><span>↓</span><span>Respaldo Excel</span></button>
+      <button id="btn-recover-excel" class="backup-tool-button" type="button"><span>↥</span><span>Recuperar Excel</span></button>
+    </div>
     <div class="sidebar-footer"><span class="avatar avatar-owner">NM</span><span>New Monday</span></div>
   </aside>
 
@@ -47,5 +52,6 @@
   <datalist id="crew-options"></datalist>
   <script src="/js/app-v2.js"></script>
   <script src="/js/app-v2-dnd.js"></script>
+  <script src="/js/app-v2-backup.js"></script>
 </body>
 </html>
