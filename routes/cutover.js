@@ -53,8 +53,19 @@ function productionCountsAreEmpty(counts = {}) {
     && Number(counts.items || 0) === 0;
 }
 
+// `sourceCounts` is a Mixed Mongoose field. During long imports, in-place
+// increments can remain visible on the live document instance while an earlier
+// persisted snapshot still contains zero item counts. The audit stores a fresh
+// immutable copy of the exact source counts used to compare staging, so that is
+// the canonical value after an audit has completed.
+function effectiveSourceCounts(run = {}) {
+  const audited = run?.audit?.sourceCounts;
+  if (audited && typeof audited === 'object') return audited;
+  return run?.sourceCounts || {};
+}
+
 function baselineMatches(run) {
-  const source = run?.sourceCounts || {};
+  const source = effectiveSourceCounts(run);
   const staged = run?.stagedCounts || {};
   return (
     Number(source.workspaces) === BASELINE.workspaces
@@ -169,7 +180,7 @@ router.get('/runs/:runId', async (req, res) => {
       runId: String(run._id),
       status: run.status,
       readOnlyMonday: run.readOnlyMonday,
-      sourceCounts: run.sourceCounts,
+      sourceCounts: effectiveSourceCounts(run),
       stagedCounts: run.stagedCounts,
       audit: run.audit,
       progress: run.progress,
@@ -257,6 +268,7 @@ module.exports = {
   PROMOTE_CONFIRMATION,
   tokenHash,
   productionCountsAreEmpty,
+  effectiveSourceCounts,
   baselineMatches,
   runIsEligibleForPromotion,
   previewIsSafe,
