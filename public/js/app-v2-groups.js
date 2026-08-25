@@ -1,13 +1,38 @@
 (() => {
   const GROUP_COLORS = [
-    '#579bfc', '#00c875', '#a25ddc', '#ff642e', '#fdab3d', '#e2445c',
-    '#037f4c', '#0086c0', '#9cd326', '#cab641', '#ffcb00', '#784bd1',
-    '#bb3354', '#ff7575', '#401694', '#225091', '#7f5347', '#c4c4c4'
+    '#037f4c', '#00c875', '#9cd326', '#cab641', '#ffcb00', '#784bd1',
+    '#9d50dd', '#007eb5', '#579bfc', '#66ccff', '#bb3354', '#df2f4a',
+    '#ff007f', '#ff5ac4', '#ff642e', '#fdab3d', '#7f5347', '#c4c4c4', '#757575'
   ];
 
   const baseBindBoardEvents = app.bindBoardEvents.bind(app);
+  const baseBindStaticEvents = app.bindStaticEvents.bind(app);
 
   app.groupColorChoices = GROUP_COLORS;
+  app.groupShortcutBound = false;
+
+  app.bindStaticEvents = function bindStaticEventsWithGroupShortcut() {
+    baseBindStaticEvents();
+    if (this.groupShortcutBound) return;
+    this.groupShortcutBound = true;
+    document.addEventListener('keydown', event => {
+      const target = event.target;
+      if (target?.matches?.('input,textarea,select,[contenteditable="true"]')) return;
+      if (!(event.ctrlKey || event.metaKey) || String(event.key).toLowerCase() !== 'g') return;
+      if (!this.currentBoard || !['board'].includes(this.currentView)) return;
+      event.preventDefault();
+      this.toggleAllGroups();
+    });
+  };
+
+  app.toggleAllGroups = function toggleAllGroups(forceCollapsed = null) {
+    const groups = this.effectiveGroups();
+    const allCollapsed = groups.length > 0 && groups.every(group => this.collapsedGroups.has(group.id));
+    const collapse = forceCollapsed === null ? !allCollapsed : Boolean(forceCollapsed);
+    if (collapse) groups.forEach(group => this.collapsedGroups.add(group.id));
+    else groups.forEach(group => this.collapsedGroups.delete(group.id));
+    this.renderBoard();
+  };
 
   app.enhanceGroupHeaders = function enhanceGroupHeaders() {
     const content = document.getElementById('content');
@@ -172,6 +197,7 @@
     const group = this.effectiveGroups().find(entry => entry.id === groupId);
     if (!group) return;
 
+    const allCollapsed = this.effectiveGroups().length > 0 && this.effectiveGroups().every(entry => this.collapsedGroups.has(entry.id));
     const menu = document.createElement('div');
     menu.className = 'floating-menu group-actions-menu';
     menu.innerHTML = `
@@ -182,6 +208,7 @@
       <div class="menu-separator"></div>
       <button data-group-action="duplicate" type="button"><span>⧉ Duplicar grupo</span></button>
       <button data-group-action="collapse" type="button"><span>${this.collapsedGroups.has(groupId) ? '▾ Expandir grupo' : '▸ Contraer grupo'}</span></button>
+      <button data-group-action="collapse-all" type="button"><span>${allCollapsed ? '▾ Expandir todos los grupos' : '▸ Contraer todos los grupos'}</span><small>Ctrl+G</small></button>
     `;
 
     menu.querySelector('[data-group-action="rename"]')?.addEventListener('click', () => {
@@ -221,6 +248,11 @@
       if (this.collapsedGroups.has(groupId)) this.collapsedGroups.delete(groupId);
       else this.collapsedGroups.add(groupId);
       this.renderBoard();
+    });
+
+    menu.querySelector('[data-group-action="collapse-all"]')?.addEventListener('click', () => {
+      menu.remove();
+      this.toggleAllGroups(!allCollapsed);
     });
 
     this.positionMenu(menu, anchor);
