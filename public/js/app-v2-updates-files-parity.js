@@ -58,6 +58,7 @@
     if (!host) return;
     try {
       const updates = await this.api(`/api/updates/item/${itemId}`);
+      if (typeof this.noteItemUpdateCount === 'function') this.noteItemUpdateCount(itemId, updates);
       host.innerHTML = `<form id="new-update-form" class="new-update-form new-update-form-with-files">
           <textarea name="body" rows="3" placeholder="Escribe una actualización…"></textarea>
           <div class="new-update-attachments" data-new-update-files></div>
