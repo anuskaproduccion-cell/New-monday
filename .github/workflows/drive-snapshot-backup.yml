@@ -1,0 +1,88 @@
+name: New Monday Drive snapshot backup
+
+on:
+  push:
+    branches: [agent/drive-backup-2026-08-25]
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    if: contains(github.event.head_commit.message, '[drive-backup]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install
+      - name: Build source and production-data backups
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          set -euo pipefail
+          if [ -z "$MONGODB_URI" ]; then
+            echo "MONGODB_URI is not configured in repository secrets."
+            exit 1
+          fi
+          mkdir -p backup-output
+          git archive --format=zip --output=backup-output/NEW_MONDAY_SOURCE_2026-08-25.zip HEAD
+          node <<'NODE'
+          const fs = require('fs');
+          const mongoose = require('mongoose');
+          const { buildEmergencyWorkbookBuffer } = require('./services/excelBackup');
+
+          (async () => {
+            await mongoose.connect(process.env.MONGODB_URI);
+            const { buffer, manifest } = await buildEmergencyWorkbookBuffer();
+            fs.writeFileSync('backup-output/NEW_MONDAY_BACKUP_2026-08-25.xlsx', Buffer.from(buffer));
+            fs.writeFileSync('backup-output/NEW_MONDAY_BACKUP_MANIFEST_2026-08-25.json', JSON.stringify({
+              ...manifest,
+              backupPurpose: 'Drive restorable checkpoint before continuing Monday UI parity work',
+              snapshotBranch: process.env.GITHUB_REF_NAME,
+              snapshotSha: process.env.GITHUB_SHA,
+              productionMainSha: '37b537c94ba8839ddb0fe3a9abe5ff8895bca492',
+              mondayWrites: 0
+            }, null, 2));
+            await mongoose.disconnect();
+          })().catch(async error => {
+            console.error(error);
+            try { await mongoose.disconnect(); } catch {}
+            process.exit(1);
+          });
+          NODE
+      - name: Upload snapshot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: new-monday-drive-backup-2026-08-25
+          path: backup-output/*
+          if-no-files-found: error
+          retention-days: 30
+      - name: Record backup workflow result
+        if: always()
+        env:
+          RESULT: ${{ job.status }}
+          RUN_ID: ${{ github.run_id }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p docs
+          {
+            echo '# New Monday Drive backup result'
+            echo
+            echo "- outcome: ${RESULT}"
+            echo "- workflowRunId: ${RUN_ID}"
+            echo "- snapshotSha: ${HEAD_SHA}"
+            echo "- recordedAtUtc: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo '- source: full git archive of current in-progress branch'
+            echo '- data: production Excel emergency backup'
+            echo '- Monday writes: 0'
+          } > docs/DRIVE_BACKUP_RESULT.md
+          git config user.name 'new-monday-backup-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add docs/DRIVE_BACKUP_RESULT.md
+          git commit -m 'Record Drive backup workflow result' || true
+          git push
