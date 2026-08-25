@@ -92,11 +92,12 @@
   app.renderFilesGallery = async function renderFilesGallery(view) {
     const content = document.getElementById('content');
     if (!content) return;
+    const boardId = String(this.currentBoardId() || '');
     content.innerHTML = '<div class="loading"><span class="spinner"></span>Cargando archivos…</div>';
     let updates = [];
-    try { updates = await this.api(`/api/updates/board/${this.currentBoardId()}`); }
+    try { updates = await this.api(`/api/updates/board/${boardId}`); }
     catch { updates = []; }
-    if (String(this.currentBoardId()) !== String(view && this.currentBoardId())) return;
+    if (String(this.currentBoardId() || '') !== boardId) return;
 
     const entries = this.filesGalleryEntries(updates);
     const layout = this.filesGalleryLayout(view);
