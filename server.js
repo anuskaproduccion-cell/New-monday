@@ -64,6 +64,14 @@ app.get('/login', (req, res) => {
   return res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
+// The login page must be able to load its own JavaScript before a session exists.
+// Keep this one static asset public; the rest of the application remains behind
+// accessMiddleware below.
+app.get('/js/login.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  return res.sendFile(path.join(__dirname, 'public', 'js', 'login.js'));
+});
+
 app.post('/auth/login', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   if (!authRequired(process.env)) return res.json({ ok: true, authenticationRequired: false });
