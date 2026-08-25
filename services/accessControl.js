@@ -2,6 +2,8 @@ const crypto = require('crypto');
 
 const COOKIE_NAME = 'nm_session';
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_FAILURES = 10;
 
 function authRequired(env = process.env) {
   return String(env.NEW_MONDAY_REQUIRE_AUTH || '').toLowerCase() === 'true';
@@ -101,9 +103,73 @@ function accessMiddleware(env = process.env) {
   };
 }
 
+function createLoginAttemptLimiter({
+  maxFailures = LOGIN_MAX_FAILURES,
+  windowMs = LOGIN_WINDOW_MS,
+  now = () => Date.now()
+} = {}) {
+  const attempts = new Map();
+
+  function current(key) {
+    const id = String(key || 'unknown');
+    const entry = attempts.get(id);
+    const timestamp = now();
+    if (!entry || timestamp - entry.firstFailureAt >= windowMs) {
+      if (entry) attempts.delete(id);
+      return { id, entry: null, timestamp };
+    }
+    return { id, entry, timestamp };
+  }
+
+  function check(key) {
+    const { entry, timestamp } = current(key);
+    if (!entry || entry.failures < maxFailures) return { allowed: true, retryAfterMs: 0 };
+    return {
+      allowed: false,
+      retryAfterMs: Math.max(1, windowMs - (timestamp - entry.firstFailureAt))
+    };
+  }
+
+  function failure(key) {
+    const { id, entry, timestamp } = current(key);
+    if (!entry) {
+      attempts.set(id, { failures: 1, firstFailureAt: timestamp });
+      return 1;
+    }
+    entry.failures += 1;
+    attempts.set(id, entry);
+    return entry.failures;
+  }
+
+  function success(key) {
+    attempts.delete(String(key || 'unknown'));
+  }
+
+  return { check, failure, success };
+}
+
+function securityHeadersMiddleware() {
+  return (req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; connect-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    );
+    if (requestUsesHttps(req)) {
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    return next();
+  };
+}
+
 module.exports = {
   COOKIE_NAME,
   SESSION_TTL_MS,
+  LOGIN_WINDOW_MS,
+  LOGIN_MAX_FAILURES,
   authRequired,
   assertAuthConfiguration,
   safeEqual,
@@ -114,5 +180,7 @@ module.exports = {
   clearSessionCookie,
   requestUsesHttps,
   isAuthenticatedRequest,
-  accessMiddleware
+  accessMiddleware,
+  createLoginAttemptLimiter,
+  securityHeadersMiddleware
 };
