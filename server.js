@@ -10,16 +10,20 @@ const {
   serializeSessionCookie,
   clearSessionCookie,
   requestUsesHttps,
-  accessMiddleware
+  accessMiddleware,
+  createLoginAttemptLimiter,
+  securityHeadersMiddleware
 } = require('./services/accessControl');
 const { router: cutoverRouter } = require('./routes/cutover');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
+const loginAttempts = createLoginAttemptLimiter();
 
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
+app.use(securityHeadersMiddleware());
 app.use(express.json({ limit: '1mb' }));
 
 try {
@@ -40,6 +44,7 @@ if (!MONGODB_URI) {
 app.get('/api/health', (req, res) => {
   const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
   const readyState = mongoose.connection.readyState;
+  res.setHeader('Cache-Control', 'no-store');
   res.status(readyState === 1 ? 200 : 503).json({
     ok: readyState === 1,
     database: states[readyState] || 'unknown',
@@ -55,23 +60,36 @@ app.use('/api/cutover', cutoverRouter);
 
 app.get('/login', (req, res) => {
   if (!authRequired(process.env)) return res.redirect('/');
-  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+  res.setHeader('Cache-Control', 'no-store');
+  return res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
 app.post('/auth/login', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   if (!authRequired(process.env)) return res.json({ ok: true, authenticationRequired: false });
+
+  const attemptKey = req.ip || req.socket?.remoteAddress || 'unknown';
+  const gate = loginAttempts.check(attemptKey);
+  if (!gate.allowed) {
+    res.setHeader('Retry-After', String(Math.ceil(gate.retryAfterMs / 1000)));
+    return res.status(429).json({ error: 'Demasiados intentos. Inténtalo de nuevo más tarde.' });
+  }
+
   const expected = String(process.env.NEW_MONDAY_ACCESS_PASSWORD || '');
   const supplied = String(req.body?.password || '');
   if (!safeEqual(supplied, expected)) {
+    loginAttempts.failure(attemptKey);
     return res.status(401).json({ error: 'Contraseña incorrecta' });
   }
 
+  loginAttempts.success(attemptKey);
   const token = createSessionToken(String(process.env.NEW_MONDAY_SESSION_SECRET));
   res.setHeader('Set-Cookie', serializeSessionCookie(token, { secure: requestUsesHttps(req) }));
   return res.json({ ok: true, authenticationRequired: true });
 });
 
 app.post('/auth/logout', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Set-Cookie', clearSessionCookie({ secure: requestUsesHttps(req) }));
   res.json({ ok: true });
 });
