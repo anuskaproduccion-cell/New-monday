@@ -24,6 +24,7 @@ jobs:
           node --check public/js/app-v2-groups.js
           node --check public/js/app-v2-timeline.js
           node --check public/js/app-v2-people.js
+          node --check public/js/app-v2-dependency-parity.js
           node --check public/js/app-v2-dnd.js
           node --check public/js/app-v2-columns.js
           node --check public/js/app-v2-column-parity.js
