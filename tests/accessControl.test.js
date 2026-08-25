@@ -1,4 +1,6 @@
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const {
   authRequired,
   assertAuthConfiguration,
@@ -71,5 +73,9 @@ assert.strictEqual(headers['X-Frame-Options'], 'DENY');
 assert.strictEqual(headers['X-Content-Type-Options'], 'nosniff');
 assert.ok(headers['Content-Security-Policy'].includes("frame-ancestors 'none'"));
 assert.ok(headers['Strict-Transport-Security'].includes('max-age='));
+
+const loginHtml = fs.readFileSync(path.join(__dirname, '..', 'public', 'login.html'), 'utf8');
+assert.ok(loginHtml.includes('<script src="/js/login.js"></script>'));
+assert.strictEqual(/<script(?![^>]*\bsrc=)[^>]*>/i.test(loginHtml), false, 'login page must not contain inline scripts under strict CSP');
 
 console.log('accessControl tests passed');
