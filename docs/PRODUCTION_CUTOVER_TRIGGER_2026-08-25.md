@@ -9,3 +9,5 @@ Safety requirements enforced by the runner:
 - Fingerprint audit must be fully green.
 - Promotion preview must contain zero conflicts and zero planned deletes.
 - Final production count must be 17 workspaces / 103 boards / 1643 Item documents.
+
+Final controlled execution requested at 2026-08-25 after the user explicitly authorized publication. The workflow records its own outcome in `docs/PRODUCTION_CUTOVER_RESULT.md`.
