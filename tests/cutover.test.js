@@ -5,6 +5,7 @@ const {
   PROMOTE_CONFIRMATION,
   tokenHash,
   productionCountsAreEmpty,
+  effectiveSourceCounts,
   baselineMatches,
   runIsEligibleForPromotion,
   previewIsSafe,
@@ -21,33 +22,51 @@ assert.strictEqual(productionCountsAreEmpty({ workspaces: 0, boards: 1, items: 0
 assert.strictEqual(productionCountsAreEmpty({ workspaces: 1, boards: 0, items: 0 }), false);
 assert.strictEqual(productionCountsAreEmpty({ workspaces: 0, boards: 0, items: 1 }), false);
 
+const sourceCounts = {
+  workspaces: BASELINE.workspaces,
+  boards: BASELINE.boards,
+  visibleBoards: BASELINE.visibleBoards,
+  internalSubitemBoards: BASELINE.internalSubitemBoards,
+  items: BASELINE.items,
+  subitems: BASELINE.subitems
+};
+const stagedCounts = {
+  workspaces: BASELINE.workspaces,
+  boards: BASELINE.boards,
+  visibleBoards: BASELINE.visibleBoards,
+  internalBoards: BASELINE.internalSubitemBoards,
+  items: BASELINE.items,
+  subitems: BASELINE.subitems
+};
 const validRun = {
   status: 'completed',
   audit: { ok: true },
-  sourceCounts: {
-    workspaces: BASELINE.workspaces,
-    boards: BASELINE.boards,
-    visibleBoards: BASELINE.visibleBoards,
-    internalSubitemBoards: BASELINE.internalSubitemBoards,
-    items: BASELINE.items,
-    subitems: BASELINE.subitems
-  },
-  stagedCounts: {
-    workspaces: BASELINE.workspaces,
-    boards: BASELINE.boards,
-    visibleBoards: BASELINE.visibleBoards,
-    internalBoards: BASELINE.internalSubitemBoards,
-    items: BASELINE.items,
-    subitems: BASELINE.subitems
-  }
+  sourceCounts,
+  stagedCounts
 };
 assert.strictEqual(baselineMatches(validRun), true);
-assert.strictEqual(baselineMatches({ ...validRun, sourceCounts: { ...validRun.sourceCounts, boards: 102 } }), false);
-assert.strictEqual(baselineMatches({ ...validRun, stagedCounts: { ...validRun.stagedCounts, subitems: 412 } }), false);
+assert.strictEqual(baselineMatches({ ...validRun, sourceCounts: { ...sourceCounts, boards: 102 } }), false);
+assert.strictEqual(baselineMatches({ ...validRun, stagedCounts: { ...stagedCounts, subitems: 412 } }), false);
 assert.strictEqual(runIsEligibleForPromotion(validRun), true);
 assert.strictEqual(runIsEligibleForPromotion({ ...validRun, status: 'running' }), false);
 assert.strictEqual(runIsEligibleForPromotion({ ...validRun, audit: { ok: false } }), false);
-assert.strictEqual(runIsEligibleForPromotion({ ...validRun, sourceCounts: { ...validRun.sourceCounts, items: 1229 } }), false);
+assert.strictEqual(runIsEligibleForPromotion({ ...validRun, sourceCounts: { ...sourceCounts, items: 1229 } }), false);
+
+const reloadedMixedFieldRun = {
+  ...validRun,
+  sourceCounts: { ...sourceCounts, items: 0, subitems: 0 },
+  audit: { ok: true, sourceCounts: { ...sourceCounts } }
+};
+assert.deepStrictEqual(effectiveSourceCounts(reloadedMixedFieldRun), sourceCounts);
+assert.strictEqual(baselineMatches(reloadedMixedFieldRun), true);
+assert.strictEqual(runIsEligibleForPromotion(reloadedMixedFieldRun), true);
+assert.strictEqual(
+  baselineMatches({
+    ...reloadedMixedFieldRun,
+    audit: { ok: true, sourceCounts: { ...sourceCounts, items: BASELINE.items - 1 } }
+  }),
+  false
+);
 
 assert.strictEqual(previewIsSafe({ ready: true, deletesPlanned: 0, conflicts: [] }), true);
 assert.strictEqual(previewIsSafe({ ready: false, deletesPlanned: 0, conflicts: [] }), false);
