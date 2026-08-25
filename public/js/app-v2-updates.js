@@ -43,6 +43,7 @@
     if (!host) return;
     try {
       const updates = await this.api(`/api/updates/item/${itemId}`);
+      if (typeof this.noteItemUpdateCount === 'function') this.noteItemUpdateCount(itemId, updates);
       host.innerHTML = `<form id="new-update-form" class="new-update-form"><textarea name="body" rows="3" placeholder="Escribe una actualización…" required></textarea><div><button class="button primary">Publicar actualización</button></div></form>
         <div class="updates-feed">${updates.length ? updates.map(update => this.updateCardHtml(update)).join('') : '<div class="updates-empty">Todavía no hay actualizaciones.</div>'}</div>`;
       document.getElementById('new-update-form')?.addEventListener('submit', async event => {
