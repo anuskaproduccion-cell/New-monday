@@ -15,45 +15,25 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - run: npm install
-      - name: Build source and production-data backups
-        env:
-          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      - name: Build restorable source snapshot
         run: |
           set -euo pipefail
-          if [ -z "$MONGODB_URI" ]; then
-            echo "MONGODB_URI is not configured in repository secrets."
-            exit 1
-          fi
           mkdir -p backup-output
           git archive --format=zip --output=backup-output/NEW_MONDAY_SOURCE_2026-08-25.zip HEAD
-          node <<'NODE'
-          const fs = require('fs');
-          const mongoose = require('mongoose');
-          const { buildEmergencyWorkbookBuffer } = require('./services/excelBackup');
-
-          (async () => {
-            await mongoose.connect(process.env.MONGODB_URI);
-            const { buffer, manifest } = await buildEmergencyWorkbookBuffer();
-            fs.writeFileSync('backup-output/NEW_MONDAY_BACKUP_2026-08-25.xlsx', Buffer.from(buffer));
-            fs.writeFileSync('backup-output/NEW_MONDAY_BACKUP_MANIFEST_2026-08-25.json', JSON.stringify({
-              ...manifest,
-              backupPurpose: 'Drive restorable checkpoint before continuing Monday UI parity work',
-              snapshotBranch: process.env.GITHUB_REF_NAME,
-              snapshotSha: process.env.GITHUB_SHA,
-              productionMainSha: '37b537c94ba8839ddb0fe3a9abe5ff8895bca492',
-              mondayWrites: 0
-            }, null, 2));
-            await mongoose.disconnect();
-          })().catch(async error => {
-            console.error(error);
-            try { await mongoose.disconnect(); } catch {}
-            process.exit(1);
-          });
-          NODE
+          cat > backup-output/NEW_MONDAY_SOURCE_MANIFEST_2026-08-25.json <<EOF
+          {
+            "backupPurpose": "Drive restorable checkpoint before continuing Monday UI parity work",
+            "snapshotBranch": "${GITHUB_REF_NAME}",
+            "snapshotSha": "${GITHUB_SHA}",
+            "productionMainSha": "37b537c94ba8839ddb0fe3a9abe5ff8895bca492",
+            "includesInProgressGroupParity": true,
+            "productionDataExcelIncluded": false,
+            "productionDataExcelReason": "MONGODB_URI is held in Render and was not copied into GitHub Actions",
+            "mondayWrites": 0,
+            "createdAtUtc": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          }
+          EOF
+          sha256sum backup-output/NEW_MONDAY_SOURCE_2026-08-25.zip > backup-output/SHA256SUMS.txt
       - name: Upload snapshot artifact
         uses: actions/upload-artifact@v4
         with:
@@ -78,7 +58,7 @@ jobs:
             echo "- snapshotSha: ${HEAD_SHA}"
             echo "- recordedAtUtc: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
             echo '- source: full git archive of current in-progress branch'
-            echo '- data: production Excel emergency backup'
+            echo '- data Excel: not included; production Mongo secret remains only in Render'
             echo '- Monday writes: 0'
           } > docs/DRIVE_BACKUP_RESULT.md
           git config user.name 'new-monday-backup-bot'
