@@ -77,6 +77,7 @@ Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia 
 - [x] Mirror: presentación local según el tipo reflejado en vez de texto plano cuando la semántica está disponible.
 - [x] Files Column: varios archivos, drag & drop, subida desde ordenador, enlace externo, descarga y retirada local.
 - [x] Adjuntos locales persistentes en MongoDB GridFS; no dependen del filesystem efímero de Render.
+- [x] Email y Enlace: representación compacta y editor emergente en vez de inputs permanentes.
 
 ### Vistas
 
@@ -88,6 +89,8 @@ Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia 
 - [x] Reordenar vistas por drag & drop y teclado.
 - [x] Filtros avanzados y multi-orden guardables por vista.
 - [x] Files Gallery local en cuadrícula/lista consolidando Files Column y adjuntos de Updates/respuestas.
+- [x] Menú `⌄` directamente en cada pestaña guardada para abrir, renombrar, duplicar y eliminar.
+- [x] Menú de pestaña accesible también por menú contextual / `Shift+F10`.
 
 ### Gantt
 
@@ -106,10 +109,18 @@ Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia 
 
 - [x] Renombrado inline del tablero haciendo clic en el nombre.
 - [x] Estrella de favorito funcional y sección Favoritos en el sidebar.
+- [x] Sección Recientes en el sidebar, recordando los últimos tableros abiertos localmente.
 - [x] Menú `⋯` del tablero con renombrar, favorito, copiar enlace, información, actividad y archivo.
 - [x] Deep-link por tablero mediante `?board=<id>`.
 - [x] Archivar tablero localmente sin borrar elementos.
 - [x] Navegador de tableros archivados y restauración desde el menú del workspace.
+
+### Elementos / interacción
+
+- [x] Menú de elemento reorganizado con jerarquía visual consistente.
+- [x] Acceso desde el menú a Actualizaciones, renombrado, duplicado, movimiento, archivo y papelera.
+- [x] Movimiento de elemento mediante picker de grupos con búsqueda y señalización del grupo actual.
+- [x] Popovers y menús se reposicionan durante scroll/resize y se cierran si el ancla sale de pantalla.
 
 ### Colaboración y continuidad
 
@@ -125,27 +136,23 @@ Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia 
 ### Prioridad alta
 
 - [ ] Subitems: modelar esquema de columnas propio de subitems cuando difiera del padre; hoy reutilizamos mayoritariamente el esquema principal.
-- [ ] Menú de elemento: completar jerarquía visual y acciones equivalentes de Monday.
 - [ ] Gantt: controles de color por Estado/Grupo y configuración más completa.
 - [ ] Gantt: critical path / baseline solo si aportan valor real a los tableros de producción y la configuración los requiere.
-- [ ] Sidebar/workspace: carpetas, recientes, jerarquía y menús más próximos a Monday.
+- [ ] Sidebar/workspace: carpetas, jerarquía de navegación y menús más próximos a Monday.
 - [ ] Menú de tablero: duplicación segura, descripción e información compartida sin alterar las huellas de importación.
 
 ### Prioridad media
 
 - [ ] Estado: drag & drop real para reordenar etiquetas y descripciones de labels.
 - [ ] Files: preview seguro de imágenes/PDF y administración de archivos huérfanos; hoy las descargas se sirven como attachment por seguridad.
-- [ ] Enlace/Email: presentación compacta y editor emergente en vez de input permanente.
 - [ ] Updates: @mentions, indicador/conteo por item y editor enriquecido.
 - [ ] Resumen de columnas también visible de forma útil con grupos contraídos.
-- [ ] Menú por pestaña de vista directamente en la propia pestaña, no solo desde la toolbar de la vista activa.
-- [ ] Overflow/responsive de vistas cuando hay muchas vistas reales.
+- [ ] Overflow fino de vistas cuando existen muchas vistas operativas reales; el desplazamiento horizontal básico ya está implementado.
 - [ ] Board Relation/Mirror: multi-board mirroring completo cuando una columna conecte varios tableros a la vez.
 
 ### Paridad de interacción y accesibilidad
 
 - [ ] Selección/hover/focus de filas y celdas más fiel al board de Monday.
-- [ ] Menús emergentes que se reposicionen durante scroll horizontal/vertical.
 - [ ] Navegación por teclado dentro de todos los selectores emergentes.
 - [ ] Undo/redo local para ediciones recientes.
 - [ ] Menú/ayuda de atajos equivalente a la experiencia de hoja de cálculo de Monday.
@@ -166,14 +173,14 @@ Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia 
 
 ## Estado de validación
 
-Último lote validado el 2026-08-25 antes del bloque final de archivo de tableros:
-- `npm test`: PASS
-- `npm audit --omit=dev --audit-level=high`: PASS
-- syntax checks: PASS
-- workflow general v2: PASS
+Último lote validado el 2026-08-25:
+- `npm test`: PASS en el último lote cerrado.
+- `npm audit --omit=dev --audit-level=high`: PASS en el último lote cerrado.
+- syntax checks: PASS en el último lote cerrado.
+- workflow general v2: PASS en el último lote cerrado.
 - STAGING/recovery no se ejecutan salvo disparador explícito.
 
-El bloque posterior de archivo/restauración de tableros queda sujeto al siguiente CI automático de la rama.
+El lote actual añade Recientes, menú de elemento, seguimiento de popovers y menú directo por pestaña; queda sujeto al CI automático final de la rama antes de revisión visual/publicación.
 
 Producción no se modifica durante esta auditoría. PR #5 permanece Draft hasta revisión visual y autorización expresa de publicación.
 
