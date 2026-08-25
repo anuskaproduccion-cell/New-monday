@@ -12,7 +12,8 @@ const importRunSchema = new mongoose.Schema({
   stagedCounts: { type: mongoose.Schema.Types.Mixed, default: {} },
   audit: { type: mongoose.Schema.Types.Mixed, default: {} },
   progress: { type: mongoose.Schema.Types.Mixed, default: {} },
-  error: { type: String, default: '' }
+  error: { type: String, default: '' },
+  cutoverTokenHash: { type: String, default: '', select: false }
 }, { timestamps: true });
 
 module.exports = mongoose.model('ImportRun', importRunSchema);
