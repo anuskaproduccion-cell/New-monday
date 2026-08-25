@@ -19,4 +19,6 @@
 .group-color-swatch.is-selected{border-color:#323338!important}
 .group-actions-menu .menu-color-label{display:flex;align-items:center;gap:8px}
 .menu-color-dot{width:14px;height:14px;border-radius:50%;display:inline-block;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+.add-group-button{margin:4px 0 32px 36px;border:0;background:transparent;color:#676879;display:inline-flex;align-items:center;gap:6px;padding:7px 9px;border-radius:6px;cursor:pointer;font-size:13px}
+.add-group-button:hover{background:#f0f0f5;color:#323338}.add-group-button span:first-child{font-size:17px;line-height:1}
 @media(max-width:900px){.group-header-row.monday-group-header .group-menu-trigger{opacity:1}.group-header-row.monday-group-header .group-title-button{max-width:52vw}}
