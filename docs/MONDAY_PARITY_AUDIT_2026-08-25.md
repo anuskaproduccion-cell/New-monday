@@ -2,69 +2,157 @@
 
 Fecha: 2026-08-25
 
-Regla absoluta: Monday se consulta en solo lectura. Toda interacción nueva se implementa únicamente en New Monday.
+Regla absoluta: **Monday se consulta en solo lectura. Toda interacción nueva se implementa únicamente en New Monday.**
+
+Esta auditoría es una especificación viva de producto: una diferencia solo se marca como cerrada cuando está implementada en la rama de paridad, pasa CI y queda pendiente únicamente la validación visual antes de fusionar a producción.
 
 ## Patrón de referencia inmediato
 
 Tablero Monday: `MQFR_POST` (`5097801091`).
 
-Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia Strict (varias dependencias permitidas), Reloj mundial, Solape Weeks y Subitems. Vistas: Gantt + un `FeatureBoardView` interno llamado `Crear la Vista Vibe` (`monday-vibe-app`).
+Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia Strict con varias dependencias permitidas, Reloj mundial, Solape Weeks y Subitems. Vistas reales: Gantt + un `FeatureBoardView` interno llamado `Crear la Vista Vibe` (`monday-vibe-app`), que **no debe renderizarse como pestaña operativa**.
 
-## Corregido / implementado en PR #5
+## Fuentes oficiales Monday utilizadas
 
-- [x] Cabecera de grupo más próxima a Monday.
-- [x] Renombrado inline de grupos.
-- [x] Paleta de 18 colores de grupo.
+- Board basics: https://support.monday.com/hc/en-us/articles/115005317249-The-basics-of-a-board
+- Groups: https://support.monday.com/hc/en-us/articles/360011472320-The-basics-of-groups
+- Columns: https://support.monday.com/hc/en-us/articles/115005466609-The-basics-of-columns
+- Column Center: https://support.monday.com/hc/en-us/articles/115005310285-Available-column-types-on-monday-com
+- Status: https://support.monday.com/hc/en-us/articles/360001269685-The-Status-Column
+- People: https://support.monday.com/hc/en-us/articles/360002281539-The-People-Column
+- Timeline: https://support.monday.com/hc/en-us/articles/115005333969-The-Timeline-Column
+- Gantt: https://support.monday.com/hc/en-us/articles/360015643840-The-Gantt-Chart-View-and-Widget
+- Subitems: https://support.monday.com/hc/en-us/articles/360011905480-All-about-subitems
+- World Clock: https://support.monday.com/hc/en-us/articles/360001139425-The-World-Clock-Column
+- Files: https://support.monday.com/hc/en-us/articles/360000597900-The-Files-Column
+- File management: https://support.monday.com/hc/en-us/articles/115005339505-How-to-manage-files-in-monday-com
+- Board views: https://support.monday.com/hc/en-us/articles/360001267945-The-board-views
+- Updates / glossary: https://support.monday.com/hc/en-us/articles/115005934045-Glossary
+
+## Cerrado / implementado en PR Draft #5
+
+### Grupos
+
+- [x] Cabecera de grupo próxima a Monday: menú a la izquierda, flecha, color y nombre.
+- [x] Renombrado inline haciendo clic sobre el nombre.
+- [x] Paleta de colores basada en los colores oficiales de grupo de Monday.
 - [x] Duplicar grupo con elementos y subitems.
-- [x] Crear grupo desde menú y final del tablero.
-- [x] Cronograma compacto tipo batería; editor emergente Inicio/Fin; hitos.
-- [x] Evitar `ƒ null` en Fórmula.
-- [x] Ocultar la columna técnica `name` cuando duplica la columna principal Elemento.
-- [x] `+` al final de las cabeceras para crear columnas.
-- [x] Personas: celda compacta + selector emergente.
-- [x] Vistas: ocultar `FeatureBoardView`/Vibe internos; mostrar solo vistas operativas.
-- [x] Vistas: eliminar Cronograma local duplicado y utilidades de la tira de vistas.
-- [x] Vistas: `+` real para crear Tabla, Gantt, Progreso o Gráfico.
-- [x] Utilidades New Monday (Equipo, Actividad, Archivo, Papelera) movidas a menú separado.
-- [x] Dependencias: selector múltiple compatible con `allowMultipleItems:true` y modo Strict.
-- [x] Subitems: la celda permite abrir y crear subitems sin salir de la tabla.
+- [x] Crear grupo desde el menú y desde el final del tablero.
+- [x] Contraer/expandir un grupo.
+- [x] Contraer/expandir todos los grupos desde menú y atajo `Ctrl+G`.
+- [x] Drag & drop de grupos.
+
+### Tabla y columnas
+
+- [x] Motor de columnas dinámicas por tablero.
+- [x] Ocultar la columna técnica Monday `name` cuando duplica la columna principal Elemento.
+- [x] `+` al final de la cabecera para crear columnas.
+- [x] Redimensionar columnas arrastrando y conservar el ancho por tablero.
+- [x] Reordenar, ocultar y fijar columnas.
+- [x] Menú de columna con ordenar asc/desc, filtrar por columna, renombrar, configurar, resumen, fijar, ocultar y duplicar.
+- [x] Resúmenes de grupo por columna: distribución Estado, suma de Numbers/Formula, rangos Date/Timeline y conteos People/Dropdown.
+- [x] Crear elemento directamente desde la fila `Agregar elemento`.
+- [x] Selección múltiple y acciones en lote.
+- [x] Navegación de celdas por teclado, copiar/pegar y pegado de rangos TSV/Excel.
+
+### Tipos de columna
+
+- [x] Cronograma compacto tipo batería con editor Inicio/Fin e hitos.
+- [x] Fecha compacta con editor emergente en lugar de `<input type=date>` permanente.
+- [x] Fórmula visual limpia y de solo lectura; evita `ƒ null`.
+- [x] Personas: avatares + selector emergente con selección múltiple local.
+- [x] Estado: selector desde celda + editor de etiquetas y colores, hasta 40 etiquetas y estado gris vacío.
+- [x] Dependencias: selector múltiple compatible con `allowMultipleItems:true`; motor Strict en cascada.
+- [x] Dropdown: chips + selector múltiple.
+- [x] Subitems: abrir/crear inline y editar sus celdas.
+- [x] Board Relation y Mirror tienen soporte funcional local básico.
+- [x] Link, Email, File y World Clock se renderizan desde el esquema dinámico, aunque su UX sigue pendiente de paridad fina.
+
+### Vistas
+
+- [x] Ocultar `FeatureBoardView` / Vibe internos de la tira de vistas.
+- [x] Tabla principal + vistas operativas reales + `+` para crear vista.
+- [x] Eliminar Cronograma local duplicado de la tira cuando existe Gantt real.
+- [x] Utilidades propias de New Monday separadas de las vistas de Monday.
+- [x] Crear, renombrar, duplicar y eliminar vistas locales.
+- [x] Reordenar vistas por drag & drop y teclado.
+- [x] Filtros avanzados y multi-orden guardables por vista.
+
+### Gantt
+
+- [x] Lista de items a la izquierda y calendario horizontal a la derecha.
+- [x] Barras arrastrables y redimensionables.
+- [x] Hitos.
+- [x] Línea de Hoy y control para centrarla.
+- [x] Dependencias Strict se desplazan en cascada al mover fechas.
+- [x] Líneas/flechas visuales entre predecesor y dependiente.
+- [x] Resaltado de fila al hover.
+
+### Colaboración y continuidad
+
+- [x] Updates/comentarios y respuestas locales.
+- [x] Acceso a Updates desde bocadillo del item y presentación como panel lateral.
+- [x] Actividad/historial local.
+- [x] Archivo, Papelera y restauración.
+- [x] Exportación Excel, preview de recuperación, conflictos y recuperación validada en staging.
 
 ## Diferencias todavía visibles / funcionales
 
 ### Prioridad alta
 
-- [ ] Redimensionar ancho de columnas arrastrando, como en Monday, y conservar el ancho.
-- [ ] Menú de columna más fiel: ordenar, filtrar, descripción/info, ocultar, duplicar, borrar/configurar según permisos.
-- [ ] Fecha: sustituir `<input type=date>` permanente por celda compacta + selector emergente.
-- [ ] Dropdown: sustituir `<select>` nativo por chips y selector múltiple.
-- [ ] Estado: editor de etiquetas/colores más parecido a Monday y menú contextual desde la celda.
-- [ ] Dependencias: representación visual de múltiples vínculos y mensajes de conflicto/ciclo más claros.
-- [ ] Subitems: edición completa de sus celdas en línea y creación de múltiples subitems consecutivos.
-- [ ] Gantt: escala semanal/mensual, encabezados de meses/semanas, zoom, mejor tratamiento de hitos y dependencias visuales.
-- [ ] Vistas: menú `⋯/▾` por vista para renombrar, duplicar, borrar y ordenar directamente desde la pestaña.
-- [ ] Barra de vistas: comportamiento responsive/overflow más próximo a Monday cuando hay muchas vistas reales.
+- [ ] Gantt: respetar `show_weekends:false` del Cronograma real y añadir escala/zoom Día-Semana-Mes.
+- [ ] Gantt: agrupación visual por grupos y controles de color/configuración más próximos a Monday.
+- [ ] Gantt: critical path / baseline solo si aportan valor real a los tableros de producción y la configuración los requiere.
+- [ ] Personas: respetar límite 1/2/3/ilimitado por columna y no ofrecer nombres arbitrarios fuera del equipo local/importado.
+- [ ] Subitems: modelar esquema de columnas propio de subitems cuando difiera del padre; hoy reutilizamos mayoritariamente el esquema principal.
+- [ ] Menú de elemento: completar jerarquía visual y acciones equivalentes de Monday.
+- [ ] Renombrado del tablero inline + menú de tablero + duplicación/archivo locales seguros.
+- [ ] Sidebar/workspace: jerarquía, favoritos, búsqueda y menús más próximos a Monday.
 
 ### Prioridad media
 
-- [ ] Resúmenes al pie de grupo/columna (conteos, sumas, estado/progreso cuando aplique).
-- [ ] Columna Archivo: carga real de archivos a New Monday, no solo visualización de metadatos importados.
-- [ ] Reloj mundial: selector de zona horaria/city picker en vez de `prompt()`.
+- [ ] Estado: drag & drop real para reordenar etiquetas y descripciones de labels.
+- [ ] Reloj mundial: selector buscable de ciudad/zona, formato 12/24h, mostrar/ocultar UTC offset y horario laboral; eliminar `prompt()`.
+- [ ] Archivo: carga real a New Monday, añadir desde enlace, preview y galería; nunca depender de URLs temporales de Monday.
+- [ ] Files View / galería local agregando Files Column + adjuntos de Updates.
 - [ ] Enlace/Email: presentación compacta y editor emergente en vez de input permanente.
-- [ ] Board Relation: picker con búsqueda, selección múltiple cuando esté habilitada y mejores chips.
-- [ ] Mirror: presentación según el tipo de la columna reflejada (estado/persona/etc.), no solo texto plano.
-- [ ] Item updates: panel lateral/indicador de actualizaciones más cercano al flujo de Monday.
-- [ ] Menú de elemento: completar acciones y jerarquía visual de Monday.
-- [ ] Creación de elemento directamente desde la fila “Agregar elemento”, sin modal obligatorio.
-- [ ] Renombrado del tablero inline y menú de tablero.
-- [ ] Sidebar/workspace: jerarquía, favoritos, búsqueda y menús más próximos a Monday.
+- [ ] Board Relation: picker con búsqueda, selección múltiple solo cuando la configuración lo permita y mejores chips.
+- [ ] Mirror: renderizar según el tipo reflejado (Estado, Persona, Fecha...) y no solo como texto.
+- [ ] Updates: indicador/conteo por item, @mentions y adjuntos locales.
+- [ ] Resumen de columnas también visible de forma útil con grupos contraídos.
+- [ ] Menú por pestaña de vista directamente en la propia pestaña, no solo desde la toolbar de la vista activa.
+- [ ] Overflow/responsive de vistas cuando hay muchas vistas reales.
 
 ### Paridad de interacción y accesibilidad
 
-- [ ] Selección de filas/celdas y hover más fieles visualmente.
-- [ ] Menús contextuales cerrándose/recolocándose correctamente en scroll horizontal/vertical.
-- [ ] Navegación teclado en selectores emergentes.
-- [ ] Estados de carga/guardado por celda en vez de toast global para cada cambio.
+- [ ] Selección/hover/focus de filas y celdas más fiel al board de Monday.
+- [ ] Menús emergentes que se reposicionen durante scroll horizontal/vertical.
+- [ ] Navegación por teclado dentro de todos los selectores emergentes.
+- [ ] Indicador de guardado por celda en vez de toast global para cada cambio.
 - [ ] Undo/redo local para ediciones recientes.
+- [ ] Menú/ayuda de atajos equivalente a la experiencia de hoja de cálculo de Monday.
+
+## Hallazgos oficiales que guían la siguiente fase
+
+1. **Groups**: Monday permite renombrar al hacer clic, cambiar color desde el menú de tres puntos, duplicar, contraer, contraer todos y reordenar por drag & drop.
+2. **Status**: cada columna conserva sus propias labels/colores; se editan desde la celda y pueden existir hasta 40. El gris vacío es el estado predeterminado.
+3. **People**: admite una o varias personas y equipos; la columna puede limitar ownership a 1, 2, 3 o ilimitado.
+4. **Subitems**: pueden tener un esquema de columnas propio, compartido por todos los subitems del tablero.
+5. **Gantt**: items a la izquierda, calendario a la derecha, hitos y líneas de dependencia; es una representación visual de Date/Timeline y Dependency.
+6. **World Clock**: selector buscable por ciudad, formato 12/24h, UTC offset opcional y horario laboral configurable.
+7. **Files**: la celda permite añadir desde ordenador/enlace/servicios externos y muestra pequeños iconos con preview; una galería puede consolidar archivos del board.
+8. **Updates**: el bocadillo del item abre una conversación contextual con updates, respuestas, menciones y adjuntos.
+
+## Estado de validación
+
+Último lote validado el 2026-08-25:
+- `npm test`: PASS
+- `npm audit --omit=dev --audit-level=high`: PASS
+- syntax checks: PASS
+- workflow general v2: PASS
+- STAGING/recovery no se ejecutan salvo disparador explícito.
+
+Producción no se modifica durante esta auditoría. PR #5 permanece Draft hasta revisión visual y autorización expresa de publicación.
 
 ## Criterio de cierre
 
