@@ -1,0 +1,1 @@
+.dynamic-cell.nm-active-cell{outline:2px solid #6161ff;outline-offset:-2px;position:relative;z-index:2}.dynamic-cell:focus{outline:2px solid #6161ff;outline-offset:-2px}.dynamic-cell.nm-active-cell::after{content:'';position:absolute;right:0;bottom:0;width:6px;height:6px;background:#6161ff;pointer-events:none}

@@ -1,0 +1,141 @@
+const crypto = require('crypto');
+const express = require('express');
+const router = express.Router();
+const Board = require('../models/Board');
+const { logActivity } = require('../services/activityLogger');
+
+function generatedViewId() {
+  return `view_${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;
+}
+
+function plain(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+router.post('/:id/views', async (req, res) => {
+  try {
+    const board = await Board.findById(req.params.id);
+    if (!board) return res.status(404).json({ error: 'Board not found' });
+
+    const name = String(req.body.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'View name is required' });
+
+    const view = {
+      id: req.body.id || generatedViewId(),
+      name,
+      type: String(req.body.type || 'table'),
+      filter: req.body.filter || { logic: 'and', rules: [] },
+      sort: Array.isArray(req.body.sort) ? req.body.sort : [],
+      settings: req.body.settings || {},
+      order: Number.isFinite(req.body.order) ? Number(req.body.order) : board.views.length
+    };
+
+    board.views.push(view);
+    await board.save();
+    await logActivity({ board: board._id, type: 'view_created', message: `Vista creada: ${view.name}`, meta: { viewId: view.id, viewType: view.type } });
+    res.status(201).json(view);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.patch('/:id/views/:viewId', async (req, res) => {
+  try {
+    const board = await Board.findById(req.params.id);
+    if (!board) return res.status(404).json({ error: 'Board not found' });
+    const view = board.views.find(entry => String(entry.id) === String(req.params.viewId));
+    if (!view) return res.status(404).json({ error: 'View not found' });
+
+    const previousName = view.name;
+    for (const field of ['name', 'type', 'filter', 'sort', 'settings', 'order']) {
+      if (req.body[field] !== undefined) view[field] = req.body[field];
+    }
+    if (!String(view.name || '').trim()) return res.status(400).json({ error: 'View name is required' });
+
+    await board.save();
+    const changedFields = Object.keys(req.body || {});
+    await logActivity({
+      board: board._id,
+      type: 'view_updated',
+      field: changedFields.length === 1 ? changedFields[0] : '',
+      message: previousName !== view.name ? `Vista renombrada: ${previousName} → ${view.name}` : `Vista actualizada: ${view.name}`,
+      meta: { viewId: view.id, changedFields }
+    });
+    res.json(view);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.post('/:id/views/:viewId/duplicate', async (req, res) => {
+  try {
+    const board = await Board.findById(req.params.id);
+    if (!board) return res.status(404).json({ error: 'Board not found' });
+    const source = board.views.find(entry => String(entry.id) === String(req.params.viewId));
+    if (!source) return res.status(404).json({ error: 'View not found' });
+
+    const duplicate = plain(source.toObject ? source.toObject() : source);
+    duplicate.id = generatedViewId();
+    duplicate.name = String(req.body.name || `${source.name} (copy)`).trim();
+    duplicate.order = Number.isFinite(source.order) ? Number(source.order) + 1 : board.views.length;
+    board.views.forEach(view => {
+      if (view !== source && Number(view.order) >= duplicate.order) view.order = Number(view.order) + 1;
+    });
+    board.views.push(duplicate);
+    await board.save();
+    await logActivity({ board: board._id, type: 'view_duplicated', message: `Vista duplicada: ${duplicate.name}`, meta: { viewId: duplicate.id, sourceViewId: source.id } });
+    res.status(201).json(duplicate);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.post('/:id/views/reorder', async (req, res) => {
+  try {
+    const board = await Board.findById(req.params.id);
+    if (!board) return res.status(404).json({ error: 'Board not found' });
+    if (!Array.isArray(req.body.viewIds)) return res.status(400).json({ error: 'viewIds must be an array' });
+
+    const requested = req.body.viewIds.map(id => String(id));
+    const requestedSet = new Set(requested);
+    const existingIds = new Set(board.views.map(view => String(view.id)));
+    const invalid = requested.filter(id => !existingIds.has(id));
+    if (invalid.length) return res.status(400).json({ error: `Unknown viewIds: ${invalid.join(', ')}` });
+    if (requestedSet.size !== requested.length) return res.status(400).json({ error: 'viewIds must not contain duplicates' });
+
+    const untouched = board.views
+      .filter(view => !requestedSet.has(String(view.id)))
+      .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
+      .map(view => String(view.id));
+    const finalOrder = [...requested, ...untouched];
+    const positions = new Map(finalOrder.map((id, index) => [id, index]));
+
+    board.views.forEach(view => {
+      view.order = positions.get(String(view.id));
+    });
+    await board.save();
+    await logActivity({ board: board._id, type: 'views_reordered', message: 'Vistas reordenadas', meta: { viewIds: finalOrder } });
+    res.json(board.views.sort((a, b) => Number(a.order || 0) - Number(b.order || 0)));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.delete('/:id/views/:viewId', async (req, res) => {
+  try {
+    const board = await Board.findById(req.params.id);
+    if (!board) return res.status(404).json({ error: 'Board not found' });
+    const index = board.views.findIndex(entry => String(entry.id) === String(req.params.viewId));
+    if (index < 0) return res.status(404).json({ error: 'View not found' });
+
+    const [removed] = board.views.splice(index, 1);
+    board.views.forEach((view, order) => { view.order = order; });
+    await board.save();
+    await logActivity({ board: board._id, type: 'view_deleted', message: `Vista eliminada: ${removed.name}`, meta: { viewId: removed.id } });
+    res.json({ removed: removed.id });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+module.exports = router;

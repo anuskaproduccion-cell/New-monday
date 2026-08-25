@@ -1,0 +1,185 @@
+name: New Monday v2 validation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [agent/monday-engine-v2]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install
+      - run: npm test
+      - name: Dependency security gate
+        run: npm audit --omit=dev --audit-level=high
+      - name: Syntax checks
+        run: |
+          node --check server.js
+          node --check models/Workspace.js
+          node --check models/Board.js
+          node --check models/Item.js
+          node --check models/ImportRun.js
+          node --check models/StagingWorkspace.js
+          node --check models/StagingBoard.js
+          node --check models/StagingItem.js
+          node --check models/ExcelRecoveryRun.js
+          node --check models/ActivityEvent.js
+          node --check models/ItemUpdate.js
+          node --check routes/workspaces.js
+          node --check routes/views.js
+          node --check routes/boards.js
+          node --check routes/bulkItems.js
+          node --check routes/items.js
+          node --check routes/itemOrdering.js
+          node --check routes/mondayImport.js
+          node --check routes/cutover.js
+          node --check routes/backups.js
+          node --check routes/updates.js
+          node --check routes/activity.js
+          node --check services/accessControl.js
+          node --check services/mondayReadOnlyClient.js
+          node --check services/mondayNormalizer.js
+          node --check services/mondayStagingImporter.js
+          node --check services/stagingFingerprint.js
+          node --check services/stagingPromotion.js
+          node --check services/excelBackup.js
+          node --check services/excelRecovery.js
+          node --check services/driveBackup.js
+          node --check services/activityLogger.js
+          node --check services/dependencyEngine.js
+          node --check services/formulaEngine.js
+          node --check scripts/runIsolatedMondayStaging.js
+          node --check scripts/runIsolatedExcelRecoverySmoke.js
+          node --check scripts/auditPublishedNewMondayReadOnly.js
+          node --check scripts/runProductionCutover.js
+          node --check scripts/syncBackupToDrive.js
+          node --check public/js/login.js
+          node --check public/js/app-v2.js
+          node --check public/js/app-v2-dnd.js
+          node --check public/js/app-v2-backup.js
+          node --check public/js/app-v2-query.js
+          node --check public/js/app-v2-updates.js
+          node --check public/js/app-v2-lifecycle.js
+          node --check public/js/app-v2-columns.js
+          node --check public/js/app-v2-relational.js
+          node --check public/js/app-v2-keyboard.js
+          node --check public/js/app-v2-range.js
+          node --check public/js/app-v2-views.js
+          node --check public/js/app-v2-bulk.js
+      - name: STAGING secret availability preflight
+        env:
+          STAGING_URI: ${{ secrets.MONGODB_STAGING_URI }}
+          MONDAY_TOKEN: ${{ secrets.MONDAY_API_TOKEN }}
+          PRODUCTION_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          if [ -n "$STAGING_URI" ]; then echo "MONGODB_STAGING_URI_CONFIGURED=true"; else echo "MONGODB_STAGING_URI_CONFIGURED=false"; fi
+          if [ -n "$MONDAY_TOKEN" ]; then echo "MONDAY_API_TOKEN_CONFIGURED=true"; else echo "MONDAY_API_TOKEN_CONFIGURED=false"; fi
+          if [ -n "$PRODUCTION_URI" ]; then echo "MONGODB_URI_CONFIGURED=true"; else echo "MONGODB_URI_CONFIGURED=false"; fi
+          echo "No secret values are printed by this preflight."
+      - name: Detect explicit STAGING trigger
+        id: staging-trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          TRIGGER_SHA="$GITHUB_SHA"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TRIGGER_SHA="${{ github.event.pull_request.head.sha }}"
+            git fetch --no-tags --depth=1 origin "$TRIGGER_SHA"
+          fi
+          MESSAGE="$(git log -1 --format=%B "$TRIGGER_SHA")"
+          if [[ "$MESSAGE" == *"[run-staging]"* ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Explicit STAGING trigger detected."
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "No explicit STAGING trigger; import will not run."
+          fi
+      - name: Explicit isolated STAGING execution
+        if: steps.staging-trigger.outputs.run == 'true'
+        env:
+          MONGODB_STAGING_URI: ${{ secrets.MONGODB_STAGING_URI }}
+          MONDAY_API_TOKEN: ${{ secrets.MONDAY_API_TOKEN }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONDAY_READ_MAX_ATTEMPTS: '6'
+          MONDAY_READ_BASE_DELAY_MS: '2000'
+          MONDAY_READ_MAX_DELAY_MS: '90000'
+          MONDAY_READ_TIMEOUT_MS: '30000'
+        run: |
+          set -euo pipefail
+          if [ -z "$MONGODB_STAGING_URI" ] || [ -z "$MONDAY_API_TOKEN" ]; then
+            echo "STAGING execution blocked: required repository secrets are not configured."
+            exit 1
+          fi
+          echo "Explicit STAGING trigger accepted. Monday remains read-only; production promotion is not part of this workflow."
+          set +e
+          npm run staging:isolated
+          STAGING_EXIT=$?
+          set -e
+          if [ "$STAGING_EXIT" -eq 75 ]; then
+            echo "::warning::Monday throttled the read-only STAGING import. No Monday mutations or production writes occurred; retry is still required."
+            exit 0
+          fi
+          exit "$STAGING_EXIT"
+      - name: Detect explicit recovery smoke trigger
+        id: recovery-trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          TRIGGER_SHA="$GITHUB_SHA"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TRIGGER_SHA="${{ github.event.pull_request.head.sha }}"
+            git fetch --no-tags --depth=1 origin "$TRIGGER_SHA"
+          fi
+          MESSAGE="$(git log -1 --format=%B "$TRIGGER_SHA")"
+          if [[ "$MESSAGE" == *"[run-recovery-smoke]"* ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Explicit isolated Excel recovery smoke trigger detected."
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "No recovery smoke trigger; isolated recovery test will not run."
+          fi
+      - name: Explicit isolated Excel recovery smoke
+        if: steps.recovery-trigger.outputs.run == 'true'
+        env:
+          MONGODB_STAGING_URI: ${{ secrets.MONGODB_STAGING_URI }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          set -euo pipefail
+          if [ -z "$MONGODB_STAGING_URI" ]; then
+            echo "Recovery smoke blocked: MONGODB_STAGING_URI is not configured."
+            exit 1
+          fi
+          echo "Running Excel backup → offline edit → preview → apply → conflict protection only inside isolated STAGING."
+          npm run recovery:smoke
+      - name: Detect read-only published audit trigger
+        id: published-audit-trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          TRIGGER_SHA="$GITHUB_SHA"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TRIGGER_SHA="${{ github.event.pull_request.head.sha }}"
+            git fetch --no-tags --depth=1 origin "$TRIGGER_SHA"
+          fi
+          MESSAGE="$(git log -1 --format=%B "$TRIGGER_SHA")"
+          if [[ "$MESSAGE" == *"[audit-prod-readonly]"* ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Explicit read-only published New Monday audit detected."
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "No published audit trigger; current production will not be queried."
+          fi
+      - name: Audit currently published New Monday via GET only
+        if: steps.published-audit-trigger.outputs.run == 'true'
+        env:
+          NEW_MONDAY_PUBLISHED_URL: https://new-monday.onrender.com
+        run: |
+          set -euo pipefail
+          echo "Auditing published New Monday with GET requests only; no write endpoint is called."
+          node scripts/auditPublishedNewMondayReadOnly.js

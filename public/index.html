@@ -4,39 +4,52 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#ffffff">
-  <title>New Monday · GY_GUAYOTA</title>
+  <title>New Monday</title>
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/v2.css">
+  <link rel="stylesheet" href="/css/v2-dnd.css">
+  <link rel="stylesheet" href="/css/v2-backup.css">
+  <link rel="stylesheet" href="/css/v2-query.css">
+  <link rel="stylesheet" href="/css/v2-updates.css">
+  <link rel="stylesheet" href="/css/v2-lifecycle.css">
+  <link rel="stylesheet" href="/css/v2-keyboard.css">
+  <link rel="stylesheet" href="/css/v2-columns.css">
+  <link rel="stylesheet" href="/css/v2-range.css">
+  <link rel="stylesheet" href="/css/v2-relational.css">
+  <link rel="stylesheet" href="/css/v2-views.css">
+  <link rel="stylesheet" href="/css/v2-bulk.css">
 </head>
 <body>
   <aside class="sidebar" aria-label="Navegación principal">
     <div class="brand"><span class="brand-mark">M</span><span>New Monday</span></div>
-    <div class="workspace-card">
-      <div class="workspace-icon">GY</div>
-      <div><strong>GY_GUAYOTA</strong><small>Postproducción</small></div>
-    </div>
+    <button id="workspace-switcher" class="workspace-card workspace-switcher" type="button" aria-label="Cambiar workspace">
+      <span class="workspace-icon">NM</span>
+      <span class="workspace-copy"><strong>Workspaces</strong><small>Cargando…</small></span>
+      <span class="workspace-caret">⌄</span>
+    </button>
     <label class="sidebar-search"><span>⌕</span><input id="board-search" type="search" placeholder="Buscar tablero" autocomplete="off"></label>
     <div class="sidebar-label">Tableros</div>
     <nav id="sidebar-nav" class="sidebar-nav"></nav>
-    <div class="sidebar-footer"><span class="avatar avatar-owner">AB</span><span>Anuska Baute</span></div>
+    <div class="backup-tools" aria-label="Respaldo y recuperación">
+      <button id="btn-backup-excel" class="backup-tool-button" type="button"><span>↓</span><span>Respaldo Excel</span></button>
+      <button id="btn-recover-excel" class="backup-tool-button" type="button"><span>↥</span><span>Recuperar Excel</span></button>
+    </div>
+    <div class="sidebar-footer"><span class="avatar avatar-owner">NM</span><span>New Monday</span></div>
   </aside>
 
   <main class="main">
     <header class="board-header">
       <div class="board-heading">
-        <div class="board-title-row"><span id="board-icon" class="board-icon">😈</span><h1 id="board-title">GY_POST</h1><button class="star-button" title="Favorito">☆</button></div>
-        <p id="board-subtitle">Gestión de producción y postproducción</p>
+        <div class="board-title-row"><span id="board-icon" class="board-icon">📋</span><h1 id="board-title">New Monday</h1><button class="star-button" title="Favorito">☆</button></div>
+        <p id="board-subtitle">Motor dinámico de producción y postproducción</p>
       </div>
       <div class="header-actions">
-        <label class="global-search"><span>⌕</span><input id="global-search" type="search" placeholder="Buscar en el tablero" autocomplete="off"></label>
+        <label class="global-search"><span>⌕</span><input id="global-search" type="search" placeholder="Buscar en el tablero · ⌘K" autocomplete="off"></label>
         <button class="button primary" id="btn-add">＋ Nuevo elemento</button>
       </div>
     </header>
 
-    <div class="view-tabs" role="tablist">
-      <button class="view-tab active" data-view="board">Tabla principal</button>
-      <button class="view-tab" data-view="gantt">Cronograma</button>
-      <button class="view-tab" data-view="crew">Equipo</button>
-    </div>
+    <div id="view-tabs" class="view-tabs" role="tablist"></div>
 
     <section id="content" class="content" aria-live="polite">
       <div class="loading"><span class="spinner"></span>Cargando datos…</div>
@@ -46,6 +59,17 @@
   <div id="modal-root"></div>
   <div id="toast-root" aria-live="polite"></div>
   <datalist id="crew-options"></datalist>
-  <script src="/js/app.js"></script>
+  <script src="/js/app-v2.js"></script>
+  <script src="/js/app-v2-dnd.js"></script>
+  <script src="/js/app-v2-backup.js"></script>
+  <script src="/js/app-v2-query.js"></script>
+  <script src="/js/app-v2-updates.js"></script>
+  <script src="/js/app-v2-lifecycle.js"></script>
+  <script src="/js/app-v2-columns.js"></script>
+  <script src="/js/app-v2-relational.js"></script>
+  <script src="/js/app-v2-keyboard.js"></script>
+  <script src="/js/app-v2-range.js"></script>
+  <script src="/js/app-v2-views.js"></script>
+  <script src="/js/app-v2-bulk.js"></script>
 </body>
 </html>
