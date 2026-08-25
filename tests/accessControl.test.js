@@ -7,7 +7,9 @@ const {
   createSessionToken,
   verifySessionToken,
   serializeSessionCookie,
-  clearSessionCookie
+  clearSessionCookie,
+  createLoginAttemptLimiter,
+  securityHeadersMiddleware
 } = require('../services/accessControl');
 
 assert.strictEqual(authRequired({ NEW_MONDAY_REQUIRE_AUTH: 'true' }), true);
@@ -42,5 +44,32 @@ assert.ok(cookie.includes('HttpOnly'));
 assert.ok(cookie.includes('SameSite=Strict'));
 assert.ok(cookie.includes('Secure'));
 assert.ok(clearSessionCookie({ secure: false }).includes('Max-Age=0'));
+
+let clock = 1000;
+const limiter = createLoginAttemptLimiter({ maxFailures: 3, windowMs: 5000, now: () => clock });
+assert.deepStrictEqual(limiter.check('ip'), { allowed: true, retryAfterMs: 0 });
+assert.strictEqual(limiter.failure('ip'), 1);
+assert.strictEqual(limiter.failure('ip'), 2);
+assert.strictEqual(limiter.failure('ip'), 3);
+assert.strictEqual(limiter.check('ip').allowed, false);
+assert.ok(limiter.check('ip').retryAfterMs > 0);
+limiter.success('ip');
+assert.strictEqual(limiter.check('ip').allowed, true);
+limiter.failure('ip');
+clock += 5001;
+assert.strictEqual(limiter.check('ip').allowed, true);
+
+const headers = {};
+let nextCalled = false;
+securityHeadersMiddleware()(
+  { secure: true, headers: {} },
+  { setHeader: (key, value) => { headers[key] = value; } },
+  () => { nextCalled = true; }
+);
+assert.strictEqual(nextCalled, true);
+assert.strictEqual(headers['X-Frame-Options'], 'DENY');
+assert.strictEqual(headers['X-Content-Type-Options'], 'nosniff');
+assert.ok(headers['Content-Security-Policy'].includes("frame-ancestors 'none'"));
+assert.ok(headers['Strict-Transport-Security'].includes('max-age='));
 
 console.log('accessControl tests passed');
