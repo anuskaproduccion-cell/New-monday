@@ -25,6 +25,7 @@ jobs:
           node --check public/js/app-v2-timeline.js
           node --check public/js/app-v2-people.js
           node --check public/js/app-v2-dependency-parity.js
+          node --check public/js/app-v2-subitems-parity.js
           node --check public/js/app-v2-dnd.js
           node --check public/js/app-v2-columns.js
           node --check public/js/app-v2-column-parity.js
@@ -32,3 +33,4 @@ jobs:
           node --check routes/boards.js
           node --check routes/items.js
           node --check routes/views.js
+          node --check routes/itemOrdering.js
