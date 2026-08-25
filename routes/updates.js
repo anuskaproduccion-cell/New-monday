@@ -27,6 +27,16 @@ router.get('/item/:itemId', async (req, res) => {
   }
 });
 
+router.get('/board/:boardId', async (req, res) => {
+  try {
+    const updates = await ItemUpdate.find({ board: req.params.boardId, archived: { $ne: true } })
+      .sort({ createdAt: -1 });
+    res.json(updates);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/item/:itemId', async (req, res) => {
   try {
     const body = String(req.body.body || '').trim();
