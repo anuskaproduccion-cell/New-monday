@@ -10,6 +10,12 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function productionCountsAreFinal(counts = {}) {
+  return Number(counts.workspaces) === BASELINE.workspaces
+    && Number(counts.boards) === BASELINE.boards
+    && Number(counts.items) === EXPECTED_PRODUCTION_ITEMS;
+}
+
 async function parseResponse(response) {
   const text = await response.text();
   let payload = {};
@@ -70,6 +76,18 @@ async function pollCutover(baseUrl, runId, { attempts = 240, delayMs = 10000 } =
   throw new Error('Timed out waiting for production cutover staging audit');
 }
 
+function alreadyPublishedResult(counts, extra = {}) {
+  return {
+    status: 'passed',
+    publicationState: 'already-published',
+    mondayReadOnly: true,
+    mondayMutations: 0,
+    productionDeletes: 0,
+    productionCounts: counts,
+    ...extra
+  };
+}
+
 async function runProductionCutover(env = process.env) {
   const baseUrl = String(env.NEW_MONDAY_PUBLISHED_URL || 'https://new-monday.onrender.com').replace(/\/$/, '');
   const token = String(env.MONDAY_API_TOKEN || '');
@@ -85,6 +103,11 @@ async function runProductionCutover(env = process.env) {
 
   let runId = start.payload.runId;
   if (!start.response.ok) {
+    if (start.response.status === 409 && productionCountsAreFinal(start.payload.productionCounts || {})) {
+      const result = alreadyPublishedResult(start.payload.productionCounts, { checkpoint: 'start' });
+      console.log(JSON.stringify(result, null, 2));
+      return result;
+    }
     if (start.response.status !== 409 || !runId) {
       throw new Error(start.payload.error || `Cutover start failed with HTTP ${start.response.status}`);
     }
@@ -99,21 +122,27 @@ async function runProductionCutover(env = process.env) {
     body: { confirmation: PROMOTE_CONFIRMATION }
   });
   if (!promoted.response.ok) {
+    if (promoted.response.status === 409 && productionCountsAreFinal(promoted.payload.productionCounts || {})) {
+      const result = alreadyPublishedResult(promoted.payload.productionCounts, {
+        checkpoint: 'promotion-race',
+        runId,
+        sourceCounts: audited.sourceCounts,
+        stagedCounts: audited.stagedCounts
+      });
+      console.log(JSON.stringify(result, null, 2));
+      return result;
+    }
     throw new Error(promoted.payload.error || `Production promotion failed with HTTP ${promoted.response.status}`);
   }
 
   const counts = promoted.payload.productionCounts || {};
-  if (
-    promoted.payload.status !== 'published-data-ready'
-    || Number(counts.workspaces) !== BASELINE.workspaces
-    || Number(counts.boards) !== BASELINE.boards
-    || Number(counts.items) !== EXPECTED_PRODUCTION_ITEMS
-  ) {
+  if (promoted.payload.status !== 'published-data-ready' || !productionCountsAreFinal(counts)) {
     throw new Error(`Final production counts are not valid: ${JSON.stringify(counts)}`);
   }
 
   const result = {
     status: 'passed',
+    publicationState: 'promoted-now',
     runId,
     mondayReadOnly: true,
     mondayMutations: 0,
@@ -135,6 +164,7 @@ if (require.main === module) {
 
 module.exports = {
   EXPECTED_PRODUCTION_ITEMS,
+  productionCountsAreFinal,
   assertCompletedAudit,
   runProductionCutover
 };
