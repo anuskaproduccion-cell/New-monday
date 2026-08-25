@@ -1,6 +1,7 @@
 (() => {
   app.positionMenu = function positionMenuWithAnchorTracking(menu, anchor) {
     if (!menu || !anchor) return;
+    menu.__newMondayAnchor = anchor;
     document.body.appendChild(menu);
 
     const controller = new AbortController();
