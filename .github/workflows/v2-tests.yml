@@ -52,6 +52,7 @@ jobs:
           node --check services/formulaEngine.js
           node --check scripts/runIsolatedMondayStaging.js
           node --check scripts/runIsolatedExcelRecoverySmoke.js
+          node --check scripts/auditPublishedNewMondayReadOnly.js
           node --check scripts/syncBackupToDrive.js
           node --check public/js/app-v2.js
           node --check public/js/app-v2-dnd.js
@@ -150,3 +151,29 @@ jobs:
           fi
           echo "Running Excel backup → offline edit → preview → apply → conflict protection only inside isolated STAGING."
           npm run recovery:smoke
+      - name: Detect read-only published audit trigger
+        id: published-audit-trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          TRIGGER_SHA="$GITHUB_SHA"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TRIGGER_SHA="${{ github.event.pull_request.head.sha }}"
+            git fetch --no-tags --depth=1 origin "$TRIGGER_SHA"
+          fi
+          MESSAGE="$(git log -1 --format=%B "$TRIGGER_SHA")"
+          if [[ "$MESSAGE" == *"[audit-prod-readonly]"* ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Explicit read-only published New Monday audit detected."
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "No published audit trigger; current production will not be queried."
+          fi
+      - name: Audit currently published New Monday via GET only
+        if: steps.published-audit-trigger.outputs.run == 'true'
+        env:
+          NEW_MONDAY_PUBLISHED_URL: https://new-monday.onrender.com
+        run: |
+          set -euo pipefail
+          echo "Auditing published New Monday with GET requests only; no write endpoint is called."
+          node scripts/auditPublishedNewMondayReadOnly.js
