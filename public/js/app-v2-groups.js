@@ -39,8 +39,20 @@
     });
   };
 
+  app.ensureAddGroupControl = function ensureAddGroupControl() {
+    const board = document.querySelector('#content .board-scroll.dynamic-board');
+    if (!board || board.querySelector('[data-action="add-group"]')) return;
+    const button = document.createElement('button');
+    button.className = 'add-group-button';
+    button.type = 'button';
+    button.dataset.action = 'add-group';
+    button.innerHTML = '<span>＋</span><span>Agregar nuevo grupo</span>';
+    board.appendChild(button);
+  };
+
   app.bindBoardEvents = function bindBoardEventsWithMondayGroups() {
     this.enhanceGroupHeaders();
+    this.ensureAddGroupControl();
     baseBindBoardEvents();
 
     const content = document.getElementById('content');
@@ -61,6 +73,8 @@
         this.openGroupColorPalette(button, button.dataset.groupId);
       });
     });
+
+    content.querySelector('[data-action="add-group"]')?.addEventListener('click', () => this.createNewGroup());
   };
 
   app.beginInlineGroupRename = function beginInlineGroupRename(groupId, anchor) {
@@ -106,7 +120,7 @@
   app.openGroupColorPalette = function openGroupColorPalette(anchor, groupId) {
     document.querySelectorAll('.floating-menu,.group-color-menu').forEach(node => node.remove());
     const group = this.effectiveGroups().find(entry => entry.id === groupId);
-    if (!group) return;
+    if (!group || !anchor) return;
 
     const menu = document.createElement('div');
     menu.className = 'floating-menu group-color-menu';
@@ -132,9 +146,25 @@
     });
 
     this.positionMenu(menu, anchor);
-    setTimeout(() => document.addEventListener('pointerdown', event => {
-      if (!menu.contains(event.target) && event.target !== anchor) menu.remove();
-    }, { once: true }), 0);
+  };
+
+  app.createNewGroup = async function createNewGroup() {
+    if (!this.currentBoardId()) return;
+    const groups = this.effectiveGroups();
+    const color = GROUP_COLORS[groups.length % GROUP_COLORS.length];
+    try {
+      const created = await this.api(`/api/boards/${this.currentBoardId()}/groups`, {
+        method: 'POST',
+        body: JSON.stringify({ title: 'Nuevo grupo', color })
+      });
+      await this.reloadBoardState();
+      const selector = `.group-section[data-group-id="${CSS.escape(created.id)}"] [data-action="rename-group-inline"]`;
+      const titleButton = document.querySelector(selector);
+      this.beginInlineGroupRename(created.id, titleButton);
+      this.showToast('Grupo creado');
+    } catch (err) {
+      this.showToast(err.message, true);
+    }
   };
 
   app.openGroupMenu = function openMondayGroupMenu(anchor, groupId) {
@@ -148,6 +178,7 @@
       <div class="menu-title">${this.escapeHtml(group.title)}</div>
       <button data-group-action="rename" type="button"><span>✎ Cambiar nombre</span></button>
       <button data-group-action="color" type="button"><span class="menu-color-label"><span class="menu-color-dot" style="background:${this.escapeAttr(group.color || '#579bfc')}"></span>Cambiar color de grupo</span><span>›</span></button>
+      <button data-group-action="add" type="button"><span>＋ Agregar grupo</span></button>
       <div class="menu-separator"></div>
       <button data-group-action="duplicate" type="button"><span>⧉ Duplicar grupo</span></button>
       <button data-group-action="collapse" type="button"><span>${this.collapsedGroups.has(groupId) ? '▾ Expandir grupo' : '▸ Contraer grupo'}</span></button>
@@ -159,17 +190,22 @@
       this.beginInlineGroupRename(groupId, titleButton);
     });
 
-    menu.querySelector('[data-group-action="color"]')?.addEventListener('click', event => {
-      const colorAnchor = event.currentTarget;
-      this.openGroupColorPalette(colorAnchor, groupId);
+    menu.querySelector('[data-group-action="color"]')?.addEventListener('click', () => {
+      const colorAnchor = document.querySelector(`.group-section[data-group-id="${CSS.escape(groupId)}"] [data-action="group-color"]`);
       menu.remove();
+      if (colorAnchor) this.openGroupColorPalette(colorAnchor, groupId);
+    });
+
+    menu.querySelector('[data-group-action="add"]')?.addEventListener('click', () => {
+      menu.remove();
+      this.createNewGroup();
     });
 
     menu.querySelector('[data-group-action="duplicate"]')?.addEventListener('click', async () => {
       try {
         const result = await this.api(`/api/boards/${this.currentBoardId()}/groups/${encodeURIComponent(groupId)}/duplicate`, {
           method: 'POST',
-          body: JSON.stringify({})
+          body: JSON.stringify({ title: `${group.title} (copia)` })
         });
         menu.remove();
         await this.reloadBoardState();
@@ -188,8 +224,5 @@
     });
 
     this.positionMenu(menu, anchor);
-    setTimeout(() => document.addEventListener('pointerdown', event => {
-      if (!menu.contains(event.target) && event.target !== anchor) menu.remove();
-    }, { once: true }), 0);
   };
 })();
