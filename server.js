@@ -117,6 +117,7 @@ const mondayImportRouter = require('./routes/mondayImport');
 const backupsRouter = require('./routes/backups');
 const updatesRouter = require('./routes/updates');
 const activityRouter = require('./routes/activity');
+const filesRouter = require('./routes/files');
 
 function destructiveSeedGuard(req, res, next) {
   if (req.method === 'POST' && String(process.env.ALLOW_DESTRUCTIVE_SEED || '').toLowerCase() !== 'true') {
@@ -144,6 +145,7 @@ app.use('/api/import/monday', mondayCutoverGuard, mondayImportRouter);
 app.use('/api/backups', backupsRouter);
 app.use('/api/updates', updatesRouter);
 app.use('/api/activity', activityRouter);
+app.use('/api/files', filesRouter);
 
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
