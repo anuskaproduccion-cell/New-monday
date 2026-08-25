@@ -12,6 +12,7 @@ const {
   requestUsesHttps,
   accessMiddleware
 } = require('./services/accessControl');
+const { router: cutoverRouter } = require('./routes/cutover');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -45,6 +46,12 @@ app.get('/api/health', (req, res) => {
     authenticationRequired: authRequired(process.env)
   });
 });
+
+// One-time publication cutover endpoint. It is intentionally mounted before the
+// normal session gate so GitHub Actions can call it without exposing the UI
+// password. The router itself is disabled by default and requires possession of
+// the existing Monday read token; that token is never persisted in plaintext.
+app.use('/api/cutover', cutoverRouter);
 
 app.get('/login', (req, res) => {
   if (!authRequired(process.env)) return res.redirect('/');
