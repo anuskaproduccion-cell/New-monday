@@ -85,6 +85,20 @@ const backupsRouter = require('./routes/backups');
 const updatesRouter = require('./routes/updates');
 const activityRouter = require('./routes/activity');
 
+function destructiveSeedGuard(req, res, next) {
+  if (req.method === 'POST' && String(process.env.ALLOW_DESTRUCTIVE_SEED || '').toLowerCase() !== 'true') {
+    return res.status(403).json({ error: 'Destructive seed is disabled in this environment' });
+  }
+  return next();
+}
+
+function mondayCutoverGuard(req, res, next) {
+  if (req.method === 'POST' && String(process.env.ALLOW_MONDAY_IMPORT_CUTOVER || '').toLowerCase() !== 'true') {
+    return res.status(403).json({ error: 'Monday cutover writes are disabled in this environment', mondayReadOnly: true });
+  }
+  return next();
+}
+
 app.use('/api/workspaces', workspacesRouter);
 app.use('/api/boards', viewsRouter);
 app.use('/api/boards', boardsRouter);
@@ -92,8 +106,8 @@ app.use('/api/items', bulkItemsRouter);
 app.use('/api/items', itemsRouter);
 app.use('/api/item-ordering', itemOrderingRouter);
 app.use('/api/crew', crewRouter);
-app.use('/api/seed', seedRouter);
-app.use('/api/import/monday', mondayImportRouter);
+app.use('/api/seed', destructiveSeedGuard, seedRouter);
+app.use('/api/import/monday', mondayCutoverGuard, mondayImportRouter);
 app.use('/api/backups', backupsRouter);
 app.use('/api/updates', updatesRouter);
 app.use('/api/activity', activityRouter);
