@@ -8,6 +8,14 @@
     return [...new Set(raw.map(name => String(name || '').trim()).filter(Boolean))];
   };
 
+  app.peopleLimitForColumn = function peopleLimitForColumn(column) {
+    const settings = column?.settings || {};
+    const candidate = settings.maxAssignees ?? settings.max_assignees ?? settings.peopleLimit ?? settings.limit;
+    if (candidate === null || candidate === undefined || candidate === '' || candidate === 'unlimited') return Infinity;
+    const limit = Number(candidate);
+    return [1, 2, 3].includes(limit) ? limit : Infinity;
+  };
+
   app.peopleCandidates = function peopleCandidates(columnId) {
     const names = new Set();
     (this.crew || []).forEach(member => {
@@ -55,11 +63,13 @@
 
     const selected = new Set(this.peopleNamesFromValue(this.valueFor(item, column)));
     const candidates = this.peopleCandidates(columnId);
+    const limit = this.peopleLimitForColumn(column);
     const menu = document.createElement('div');
     menu.className = 'floating-menu people-picker-menu';
     menu.innerHTML = `
       <div class="people-picker-title">${this.escapeHtml(column.title || 'Personas')}</div>
       <label class="people-picker-search"><span>⌕</span><input type="search" data-people-search placeholder="Buscar persona" autocomplete="off"></label>
+      <div class="people-picker-limit">${Number.isFinite(limit) ? `Máximo ${limit} ${limit === 1 ? 'persona' : 'personas'}` : 'Asignación ilimitada'}</div>
       <div class="people-picker-list" data-people-list></div>
       <div class="people-picker-actions">
         <button type="button" data-people-clear>Quitar todos</button>
@@ -75,31 +85,26 @@
     const renderList = () => {
       const term = String(input.value || '').trim().toLowerCase();
       const filtered = candidates.filter(name => !term || name.toLowerCase().includes(term));
-      const exact = term && candidates.some(name => name.toLowerCase() === term);
       list.innerHTML = `${filtered.map(name => `
         <button type="button" class="people-option ${selected.has(name) ? 'is-selected' : ''}" data-people-name="${this.escapeAttr(name)}">
           <span class="people-avatar">${this.escapeHtml(this.initials(name) || '?')}</span>
           <span>${this.escapeHtml(name)}</span>
           <span class="people-check">${selected.has(name) ? '✓' : ''}</span>
         </button>
-      `).join('')}${term && !exact ? `<button type="button" class="people-option people-custom" data-people-custom="${this.escapeAttr(input.value.trim())}"><span class="people-avatar people-avatar-add">＋</span><span>Usar “${this.escapeHtml(input.value.trim())}”</span><span></span></button>` : ''}${!filtered.length && !term ? '<div class="people-picker-empty">No hay personas disponibles todavía.</div>' : ''}`;
+      `).join('')}${!filtered.length ? `<div class="people-picker-empty">${term ? 'No hay personas conocidas con ese nombre.' : 'No hay personas disponibles todavía.'}</div>` : ''}`;
 
       list.querySelectorAll('[data-people-name]').forEach(button => button.addEventListener('click', () => {
         const name = button.dataset.peopleName;
         if (selected.has(name)) selected.delete(name);
-        else selected.add(name);
+        else {
+          if (Number.isFinite(limit) && selected.size >= limit) {
+            this.showToast(`Esta columna admite un máximo de ${limit}`, true);
+            return;
+          }
+          selected.add(name);
+        }
         renderList();
       }));
-      list.querySelector('[data-people-custom]')?.addEventListener('click', buttonEvent => {
-        const name = buttonEvent.currentTarget.dataset.peopleCustom.trim();
-        if (name) {
-          selected.add(name);
-          input.value = '';
-          if (!candidates.includes(name)) candidates.push(name);
-          candidates.sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
-          renderList();
-        }
-      });
     };
 
     input.addEventListener('input', renderList);
