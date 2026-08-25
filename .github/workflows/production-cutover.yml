@@ -1,0 +1,35 @@
+name: New Monday guarded production cutover
+
+on:
+  push:
+    branches: [agent/monday-engine-v2]
+
+jobs:
+  cutover:
+    if: contains(github.event.head_commit.message, '[cutover-production]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install
+      - name: Validate cutover runner syntax and safety tests
+        run: |
+          node --check routes/cutover.js
+          node --check scripts/runProductionCutover.js
+          node tests/cutover.test.js
+          node tests/mondayReadOnlyClient.test.js
+          node tests/stagingPromotion.test.js
+      - name: Run guarded production cutover
+        env:
+          MONDAY_API_TOKEN: ${{ secrets.MONDAY_API_TOKEN }}
+          NEW_MONDAY_PUBLISHED_URL: https://new-monday.onrender.com
+        run: |
+          set -euo pipefail
+          if [ -z "$MONDAY_API_TOKEN" ]; then
+            echo "Production cutover blocked: MONDAY_API_TOKEN is not configured."
+            exit 1
+          fi
+          echo "Starting guarded publication cutover. Monday remains read-only; production deletes are forbidden."
+          node scripts/runProductionCutover.js
