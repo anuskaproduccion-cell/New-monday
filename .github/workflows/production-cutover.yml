@@ -14,13 +14,15 @@ jobs:
         with:
           node-version: '24'
       - run: npm install
-      - name: Validate cutover runner syntax and safety tests
+      - name: Validate full application before cutover
         run: |
+          set -euo pipefail
+          npm test
+          node --check server.js
+          node --check services/accessControl.js
           node --check routes/cutover.js
           node --check scripts/runProductionCutover.js
-          node tests/cutover.test.js
-          node tests/mondayReadOnlyClient.test.js
-          node tests/stagingPromotion.test.js
+          node --check public/js/login.js
       - name: Run guarded production cutover
         env:
           MONDAY_API_TOKEN: ${{ secrets.MONDAY_API_TOKEN }}
