@@ -2,7 +2,7 @@ name: New Monday guarded production cutover
 
 on:
   push:
-    branches: [agent/monday-engine-v2]
+    branches: [agent/production-cutover]
 
 jobs:
   cutover:
