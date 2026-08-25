@@ -24,6 +24,23 @@
     return `${days} d`;
   }
 
+  function progressPercent(from, to) {
+    const a = normalizedDate(from);
+    const b = normalizedDate(to);
+    if (!a || !b) return 0;
+    const start = new Date(`${a}T00:00:00Z`).getTime();
+    const end = new Date(`${b}T23:59:59Z`).getTime();
+    const now = Date.now();
+    if (now <= start) return 0;
+    if (now >= end) return 100;
+    return Math.max(0, Math.min(100, Math.round(((now - start) / Math.max(1, end - start)) * 100)));
+  }
+
+  app.timelineGroupColor = function timelineGroupColor(item) {
+    const group = this.effectiveGroups().find(entry => entry.id === item.groupId || entry.title === item.group);
+    return group?.color || item.groupColor || '#579bfc';
+  };
+
   app.cellHtml = function cellHtmlWithCompactTimeline(item, column, options = {}) {
     if (column?.type === 'timeline') {
       const value = this.valueFor(item, column) || {};
@@ -34,7 +51,9 @@
         ? (from ? `◆ ${formatDate(from)}` : '◆ Añadir hito')
         : (from && to ? `${formatDate(from)} → ${formatDate(to)}` : from ? `${formatDate(from)} → …` : to ? `… → ${formatDate(to)}` : '＋ Añadir fechas');
       const duration = milestone ? '' : durationLabel(from, to);
-      return `<button class="timeline-cell-display ${milestone ? 'is-milestone' : ''} ${from || to ? 'has-value' : 'is-empty'}" type="button" data-action="timeline-edit" data-id="${this.escapeAttr(item._id)}" data-column-id="${this.escapeAttr(column.id)}" data-from="${this.escapeAttr(from)}" data-to="${this.escapeAttr(to)}" aria-label="Editar ${this.escapeAttr(column.title || 'Cronograma')}">
+      const color = this.timelineGroupColor(item);
+      const progress = progressPercent(from, to);
+      return `<button class="timeline-cell-display ${milestone ? 'is-milestone' : ''} ${from || to ? 'has-value' : 'is-empty'}" type="button" data-action="timeline-edit" data-id="${this.escapeAttr(item._id)}" data-column-id="${this.escapeAttr(column.id)}" data-from="${this.escapeAttr(from)}" data-to="${this.escapeAttr(to)}" style="--timeline-color:${this.escapeAttr(color)};--timeline-progress:${progress}%" aria-label="Editar ${this.escapeAttr(column.title || 'Cronograma')}">
         <span class="timeline-cell-label">${this.escapeHtml(label)}</span>${duration ? `<small class="timeline-cell-duration">${this.escapeHtml(duration)}</small>` : ''}
       </button>`;
     }
@@ -85,6 +104,7 @@
         <span class="timeline-editor-arrow">→</span>
         <label><span>Fin</span><input type="date" data-timeline-editor="to" value="${this.escapeAttr(to)}"></label>
       </div>
+      <div class="timeline-editor-summary" data-timeline-summary>${this.escapeHtml(durationLabel(from, to) || 'Selecciona un rango de fechas')}</div>
       <label class="timeline-milestone-toggle"><input type="checkbox" data-timeline-milestone ${milestone ? 'checked' : ''}><span>Marcar como hito</span></label>
       <div class="timeline-editor-actions">
         <button type="button" class="timeline-clear" data-timeline-action="clear">Borrar</button>
@@ -97,16 +117,27 @@
     const fromInput = menu.querySelector('[data-timeline-editor="from"]');
     const toInput = menu.querySelector('[data-timeline-editor="to"]');
     const milestoneInput = menu.querySelector('[data-timeline-milestone]');
+    const summary = menu.querySelector('[data-timeline-summary]');
+
+    const refreshSummary = () => {
+      const label = milestoneInput.checked
+        ? (fromInput.value || toInput.value ? 'Hito · 1 día' : 'Selecciona la fecha del hito')
+        : durationLabel(fromInput.value, toInput.value) || 'Selecciona un rango de fechas';
+      if (summary) summary.textContent = label;
+    };
 
     const syncMilestone = () => {
-      if (!milestoneInput.checked) return;
-      if (fromInput.value) toInput.value = fromInput.value;
-      else if (toInput.value) fromInput.value = toInput.value;
+      if (milestoneInput.checked) {
+        if (fromInput.value) toInput.value = fromInput.value;
+        else if (toInput.value) fromInput.value = toInput.value;
+      }
+      refreshSummary();
     };
     milestoneInput.addEventListener('change', syncMilestone);
     fromInput.addEventListener('change', syncMilestone);
     toInput.addEventListener('change', () => {
       if (milestoneInput.checked) fromInput.value = toInput.value;
+      refreshSummary();
     });
 
     menu.querySelector('[data-timeline-action="clear"]')?.addEventListener('click', async () => {
