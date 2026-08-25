@@ -41,6 +41,7 @@ jobs:
           node --check public/js/app-v2-column-parity.js
           node --check public/js/app-v2-relational.js
           node --check public/js/app-v2-relational-parity.js
+          node --check public/js/app-v2-files-parity.js
           node --check public/js/app-v2-view-parity.js
           node --check public/js/app-v2-column-resize.js
           node --check public/js/app-v2-board-header-parity.js
@@ -49,3 +50,5 @@ jobs:
           node --check routes/items.js
           node --check routes/views.js
           node --check routes/itemOrdering.js
+          node --check routes/files.js
+          node --check server.js
