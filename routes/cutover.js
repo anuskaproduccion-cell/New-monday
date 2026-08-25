@@ -47,6 +47,12 @@ async function productionCounts() {
   return { workspaces, boards, items };
 }
 
+function productionCountsAreEmpty(counts = {}) {
+  return Number(counts.workspaces || 0) === 0
+    && Number(counts.boards || 0) === 0
+    && Number(counts.items || 0) === 0;
+}
+
 function baselineMatches(run) {
   const source = run?.sourceCounts || {};
   const staged = run?.stagedCounts || {};
@@ -66,7 +72,28 @@ function baselineMatches(run) {
   );
 }
 
+function runIsEligibleForPromotion(run) {
+  return Boolean(run && run.status === 'completed' && run.audit?.ok === true && baselineMatches(run));
+}
+
+function previewIsSafe(preview) {
+  return Boolean(
+    preview
+    && preview.ready === true
+    && Number(preview.deletesPlanned) === 0
+    && Array.isArray(preview.conflicts)
+    && preview.conflicts.length === 0
+  );
+}
+
+function finalCountsMatch(counts = {}) {
+  return Number(counts.workspaces) === BASELINE.workspaces
+    && Number(counts.boards) === BASELINE.boards
+    && Number(counts.items) === BASELINE.items + BASELINE.subitems;
+}
+
 router.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
   if (!enabled()) {
     return res.status(403).json({
       error: 'Production cutover is disabled',
@@ -87,7 +114,7 @@ router.post('/from-monday/start', async (req, res) => {
     if (token.length < 20) return res.status(401).json({ error: 'Monday read token is required' });
 
     const counts = await productionCounts();
-    if (counts.workspaces || counts.boards || counts.items) {
+    if (!productionCountsAreEmpty(counts)) {
       return res.status(409).json({
         error: 'Cutover start blocked because production collections are not empty',
         productionCounts: counts,
@@ -152,7 +179,7 @@ router.get('/runs/:runId', async (req, res) => {
       productionDeletes: 0
     };
 
-    if (run.status === 'completed' && run.audit?.ok && baselineMatches(run)) {
+    if (runIsEligibleForPromotion(run)) {
       payload.promotionPreview = await buildPromotionPreview(run._id);
     }
 
@@ -176,12 +203,12 @@ router.post('/runs/:runId/promote', async (req, res) => {
     if (!safeEqual(tokenHash(token), run.cutoverTokenHash)) {
       return res.status(401).json({ error: 'Cutover token does not match the token used to prepare this run' });
     }
-    if (run.status !== 'completed' || !run.audit?.ok || !baselineMatches(run)) {
+    if (!runIsEligibleForPromotion(run)) {
       return res.status(409).json({ error: 'Promotion blocked because the cutover staging audit is not fully green' });
     }
 
     const before = await productionCounts();
-    if (before.workspaces || before.boards || before.items) {
+    if (!productionCountsAreEmpty(before)) {
       return res.status(409).json({
         error: 'Promotion blocked because production collections changed after cutover preparation',
         productionCounts: before,
@@ -190,16 +217,15 @@ router.post('/runs/:runId/promote', async (req, res) => {
     }
 
     const preview = await buildPromotionPreview(run._id);
-    if (!preview.ready || preview.deletesPlanned !== 0 || preview.conflicts.length !== 0) {
+    if (!previewIsSafe(preview)) {
       return res.status(409).json({ error: 'Promotion preview is not safe', preview });
     }
 
     const result = await promoteStagingRun(run._id, preview.requiredConfirmation);
     const after = await productionCounts();
     const expectedItems = BASELINE.items + BASELINE.subitems;
-    const finalCountsOk = after.workspaces === BASELINE.workspaces && after.boards === BASELINE.boards && after.items === expectedItems;
 
-    if (!finalCountsOk) {
+    if (!finalCountsMatch(after)) {
       return res.status(500).json({
         error: 'Promotion completed but final production counts do not match the validated baseline',
         result,
@@ -230,5 +256,9 @@ module.exports = {
   PREPARE_CONFIRMATION,
   PROMOTE_CONFIRMATION,
   tokenHash,
-  baselineMatches
+  productionCountsAreEmpty,
+  baselineMatches,
+  runIsEligibleForPromotion,
+  previewIsSafe,
+  finalCountsMatch
 };
