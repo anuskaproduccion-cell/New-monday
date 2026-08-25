@@ -2,21 +2,31 @@ try { require('dotenv').config(); } catch (e) {}
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
+const {
+  authRequired,
+  assertAuthConfiguration,
+  safeEqual,
+  createSessionToken,
+  serializeSessionCookie,
+  clearSessionCookie,
+  requestUsesHttps,
+  accessMiddleware
+} = require('./services/accessControl');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
+app.set('trust proxy', 1);
 app.disable('x-powered-by');
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.sendStatus(200);
-  next();
-});
 app.use(express.json({ limit: '1mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+
+try {
+  assertAuthConfiguration(process.env);
+} catch (error) {
+  console.error(`Access-control configuration error: ${error.message}`);
+  process.exit(1);
+}
 
 if (!MONGODB_URI) {
   console.error('MONGODB_URI is not configured. API requests that need data will fail.');
@@ -25,6 +35,42 @@ if (!MONGODB_URI) {
     .then(() => console.log('Connected to MongoDB Atlas'))
     .catch(err => console.error('MongoDB connection error:', err.message));
 }
+
+app.get('/api/health', (req, res) => {
+  const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+  const readyState = mongoose.connection.readyState;
+  res.status(readyState === 1 ? 200 : 503).json({
+    ok: readyState === 1,
+    database: states[readyState] || 'unknown',
+    authenticationRequired: authRequired(process.env)
+  });
+});
+
+app.get('/login', (req, res) => {
+  if (!authRequired(process.env)) return res.redirect('/');
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.post('/auth/login', (req, res) => {
+  if (!authRequired(process.env)) return res.json({ ok: true, authenticationRequired: false });
+  const expected = String(process.env.NEW_MONDAY_ACCESS_PASSWORD || '');
+  const supplied = String(req.body?.password || '');
+  if (!safeEqual(supplied, expected)) {
+    return res.status(401).json({ error: 'Contraseña incorrecta' });
+  }
+
+  const token = createSessionToken(String(process.env.NEW_MONDAY_SESSION_SECRET));
+  res.setHeader('Set-Cookie', serializeSessionCookie(token, { secure: requestUsesHttps(req) }));
+  return res.json({ ok: true, authenticationRequired: true });
+});
+
+app.post('/auth/logout', (req, res) => {
+  res.setHeader('Set-Cookie', clearSessionCookie({ secure: requestUsesHttps(req) }));
+  res.json({ ok: true });
+});
+
+app.use(accessMiddleware(process.env));
+app.use(express.static(path.join(__dirname, 'public')));
 
 const workspacesRouter = require('./routes/workspaces');
 const viewsRouter = require('./routes/views');
@@ -51,15 +97,6 @@ app.use('/api/import/monday', mondayImportRouter);
 app.use('/api/backups', backupsRouter);
 app.use('/api/updates', updatesRouter);
 app.use('/api/activity', activityRouter);
-
-app.get('/api/health', (req, res) => {
-  const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
-  const readyState = mongoose.connection.readyState;
-  res.status(readyState === 1 ? 200 : 503).json({
-    ok: readyState === 1,
-    database: states[readyState] || 'unknown'
-  });
-});
 
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
