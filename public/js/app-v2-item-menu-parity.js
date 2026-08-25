@@ -10,7 +10,7 @@
     parentMenu?.remove();
     document.querySelectorAll('.floating-menu').forEach(node => node.remove());
     const item = this.findItem(itemId);
-    if (!item) return;
+    if (!item || !anchor?.isConnected) return;
     const groups = this.effectiveGroups();
     const menu = document.createElement('div');
     menu.className = 'floating-menu item-move-menu monday-item-menu';
@@ -64,7 +64,7 @@
       requestAnimationFrame(() => this.focusItemNameEditor(itemId));
     });
     menu.querySelector('[data-item-action="duplicate"]')?.addEventListener('click', () => this.duplicateItem(itemId, menu));
-    menu.querySelector('[data-item-action="move"]')?.addEventListener('click', event => this.openItemMoveMenu(event.currentTarget, itemId, menu));
+    menu.querySelector('[data-item-action="move"]')?.addEventListener('click', () => this.openItemMoveMenu(anchor, itemId, menu));
     menu.querySelector('[data-item-action="archive"]')?.addEventListener('click', () => this.archiveItem(itemId, menu));
     menu.querySelector('[data-item-action="trash"]')?.addEventListener('click', () => this.trashItem(itemId, menu));
     this.positionMenu(menu, anchor);
