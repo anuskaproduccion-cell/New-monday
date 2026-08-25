@@ -16,6 +16,8 @@ jobs:
           node-version: '24'
       - run: npm install
       - run: npm test
+      - name: Dependency security gate
+        run: npm audit --omit=dev --audit-level=high
       - name: Syntax checks
         run: |
           node --check server.js
