@@ -20,6 +20,7 @@ jobs:
       - name: Syntax checks
         run: |
           node --check public/js/app-v2.js
+          node --check public/js/app-v2-core-parity.js
           node --check public/js/app-v2-groups.js
           node --check public/js/app-v2-timeline.js
           node --check public/js/app-v2-dnd.js
