@@ -1,0 +1,27 @@
+name: New Monday group and timeline parity validation
+
+on:
+  push:
+    branches: [agent/monday-group-parity]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install
+      - run: npm test
+      - run: npm audit --omit=dev --audit-level=high
+      - name: Syntax checks
+        run: |
+          node --check public/js/app-v2.js
+          node --check public/js/app-v2-groups.js
+          node --check public/js/app-v2-timeline.js
+          node --check public/js/app-v2-dnd.js
+          node --check routes/boards.js
+          node --check routes/items.js
