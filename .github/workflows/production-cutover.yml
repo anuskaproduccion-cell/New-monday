@@ -18,6 +18,7 @@ jobs:
         run: |
           set -euo pipefail
           npm test
+          npm audit --omit=dev --audit-level=high
           node --check server.js
           node --check services/accessControl.js
           node --check routes/cutover.js
