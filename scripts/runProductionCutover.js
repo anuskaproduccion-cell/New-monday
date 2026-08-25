@@ -45,11 +45,29 @@ async function waitForPublishedV2(baseUrl, { attempts = 180, delayMs = 5000 } = 
   throw new Error('Timed out waiting for protected New Monday v2 deployment');
 }
 
+function auditSummary(payload = {}) {
+  return {
+    runId: payload.runId || null,
+    status: payload.status || null,
+    baselineOk: payload.baselineOk,
+    auditOk: payload.audit?.ok,
+    sourceCounts: payload.sourceCounts || {},
+    stagedCounts: payload.stagedCounts || {},
+    fingerprintAudit: payload.audit?.fingerprints || null,
+    promotionReady: payload.promotionPreview?.ready,
+    conflicts: payload.promotionPreview?.conflicts?.length,
+    deletesPlanned: payload.promotionPreview?.deletesPlanned,
+    mondayReadOnly: payload.readOnlyMonday === true,
+    mondayMutations: 0,
+    productionDeletes: 0
+  };
+}
+
 function assertCompletedAudit(payload) {
   if (payload.status !== 'completed') throw new Error(`Cutover staging ended with status ${payload.status}`);
-  if (payload.baselineOk !== true) throw new Error('Cutover staging baseline does not match the accepted Monday inventory');
-  if (payload.audit?.ok !== true) throw new Error('Cutover staging audit is not green');
-  if (payload.promotionPreview?.ready !== true) throw new Error('Cutover promotion preview is not ready');
+  if (payload.baselineOk !== true) throw new Error(`Cutover staging baseline does not match the accepted Monday inventory: ${JSON.stringify(auditSummary(payload))}`);
+  if (payload.audit?.ok !== true) throw new Error(`Cutover staging audit is not green: ${JSON.stringify(auditSummary(payload))}`);
+  if (payload.promotionPreview?.ready !== true) throw new Error(`Cutover promotion preview is not ready: ${JSON.stringify(auditSummary(payload))}`);
   if (payload.promotionPreview?.deletesPlanned !== 0) throw new Error('Cutover unexpectedly planned deletes');
   if ((payload.promotionPreview?.conflicts || []).length !== 0) throw new Error('Cutover preview has conflicts');
 }
@@ -59,6 +77,7 @@ async function pollCutover(baseUrl, runId, { attempts = 240, delayMs = 10000 } =
     const { response, payload } = await requestJson(`${baseUrl}/api/cutover/runs/${runId}`);
     if (!response.ok) throw new Error(payload.error || `Cutover status failed with HTTP ${response.status}`);
     if (payload.status === 'completed') {
+      console.log(`CUTOVER_AUDIT_SUMMARY=${JSON.stringify(auditSummary(payload))}`);
       assertCompletedAudit(payload);
       return payload;
     }
@@ -90,6 +109,7 @@ async function runProductionCutover(env = process.env) {
     }
   }
   if (!runId) throw new Error('Cutover start did not return a runId');
+  console.log(`CUTOVER_RUN_ID=${runId}`);
 
   const audited = await pollCutover(baseUrl, runId);
 
@@ -135,6 +155,7 @@ if (require.main === module) {
 
 module.exports = {
   EXPECTED_PRODUCTION_ITEMS,
+  auditSummary,
   assertCompletedAudit,
   runProductionCutover
 };
