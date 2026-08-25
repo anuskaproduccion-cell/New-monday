@@ -4,6 +4,9 @@ on:
   push:
     branches: [agent/production-cutover]
 
+permissions:
+  contents: write
+
 jobs:
   cutover:
     if: contains(github.event.head_commit.message, '[cutover-production]')
@@ -25,6 +28,7 @@ jobs:
           node --check scripts/runProductionCutover.js
           node --check public/js/login.js
       - name: Run guarded production cutover
+        id: publication
         env:
           MONDAY_API_TOKEN: ${{ secrets.MONDAY_API_TOKEN }}
           NEW_MONDAY_PUBLISHED_URL: https://new-monday.onrender.com
@@ -36,3 +40,25 @@ jobs:
           fi
           echo "Starting guarded publication cutover. Monday remains read-only; production deletes are forbidden."
           node scripts/runProductionCutover.js
+      - name: Record publication outcome
+        if: always()
+        env:
+          PUBLICATION_OUTCOME: ${{ steps.publication.outcome }}
+          RUN_ID: ${{ github.run_id }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          {
+            echo '# New Monday production cutover result'
+            echo
+            echo "- outcome: ${PUBLICATION_OUTCOME}"
+            echo "- workflowRunId: ${RUN_ID}"
+            echo "- triggerSha: ${HEAD_SHA}"
+            echo "- recordedAtUtc: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo '- policy: Monday read-only; zero production deletes'
+          } > docs/PRODUCTION_CUTOVER_RESULT.md
+          git config user.name 'new-monday-publication-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add docs/PRODUCTION_CUTOVER_RESULT.md
+          git commit -m 'Record guarded production cutover result' || true
+          git push
