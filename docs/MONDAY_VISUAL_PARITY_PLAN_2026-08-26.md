@@ -1,0 +1,86 @@
+# New Monday · plan de paridad visual con Monday · 2026-08-26
+
+Regla absoluta: **Monday se consulta únicamente como referencia de solo lectura. Toda implementación visual se realiza exclusivamente en New Monday.**
+
+## Objetivo
+
+Elevar New Monday desde paridad funcional alta a una experiencia visual y de interacción coherente con el lenguaje de Monday dentro del alcance operativo ya auditado. La meta no es copiar assets propietarios ni depender de recursos externos, sino reproducir con CSS/HTML propios la jerarquía, densidad, geometría, estados y ritmo visual que hacen reconocible la experiencia.
+
+## Definición de “paridad visual alta”
+
+Se considera alcanzada cuando, dentro de los flujos auditados, New Monday mantiene de forma consistente:
+
+- jerarquía de shell, sidebar, board header y vistas;
+- densidad de tabla y relación entre cabeceras, filas, grupos y columnas;
+- tipografía, contraste y pesos coherentes;
+- controles compactos, radios, bordes y sombras homogéneos;
+- estados hover, focus, selected, disabled, loading y save feedback;
+- menus, popovers, modales y paneles laterales con la misma familia visual;
+- Gantt, Updates, Files y estados vacíos integrados en el mismo sistema visual.
+
+La paridad se refiere al alcance funcional observado/auditado para New Monday. No implica replicar módulos del ecosistema monday.com que nunca hayan formado parte del alcance del proyecto.
+
+## Fase 1 · Foundations + shell + tabla
+
+Estado: **EN IMPLEMENTACIÓN · PR #6 Draft**
+
+### Design tokens
+
+- [x] Crear una capa visual final independiente, cargada después del resto de CSS.
+- [x] Centralizar color primario, texto, muted, superficies, bordes, sidebar, sombras, radios y alturas.
+- [x] Mantener `38px` como altura base de fila para preservar compatibilidad con la virtualización actual.
+- [ ] Validar visualmente contraste y proporciones en navegador real.
+
+### Shell
+
+- [x] Unificar sidebar, brand, workspace switcher, búsqueda y navegación.
+- [x] Unificar board header, título, subtítulo, búsqueda global y botones.
+- [x] Unificar tabs de vistas, active/hover y borde inferior.
+- [ ] Revisar responsive real en desktop estrecho y tablet.
+
+### Tabla principal
+
+- [x] Unificar cabeceras, grid, filas y estados hover/selected.
+- [x] Mantener pinned columns/sticky behavior sin alterar posiciones funcionales.
+- [x] Unificar grupo, título/color, add-item row y celdas editables.
+- [x] Unificar Status/People/chips y estados de edición.
+- [ ] QA visual con subitems expandidos y virtualización activa.
+
+## Fase 2 · Menús, popovers, modales y Updates
+
+- [x] Base visual común para floating menus y status menus.
+- [x] Base visual común para modales y backdrop.
+- [ ] Ajustar todos los pickers especializados: People, Status, Date, Dropdown, Dependency, Relation/Mirror y World Clock.
+- [ ] Ajustar panel lateral de Updates, composer, replies, menciones y adjuntos.
+- [ ] Ajustar tooltips y feedback Guardando/✓/error.
+
+## Fase 3 · Vistas especiales
+
+- [ ] Gantt: header, left pane, grid temporal, barras, dependencias, Today y controles.
+- [ ] Files Gallery: cards/list, preview y estados vacíos.
+- [ ] Activity / Archive / Trash: densidad, jerarquía y acciones.
+- [ ] Backup/Recovery: formularios, alertas y tablas de preview.
+
+## Fase 4 · Microinteracciones y QA comparativa
+
+- [ ] Auditoría visual pantalla por pantalla.
+- [ ] Hover/focus/pressed consistentes en todos los controles.
+- [ ] Restauración de foco y teclado visualmente coherentes.
+- [ ] Reduced motion preservado.
+- [ ] QA con dos sesiones realtime.
+- [ ] QA con tableros >260 items y subitems expandidos.
+- [ ] QA responsive.
+- [ ] Capturar diferencias restantes y cerrarlas antes de sacar la PR de Draft.
+
+## Criterios técnicos
+
+1. La capa visual no debe cambiar contratos API ni lógica de datos.
+2. No debe alterar Monday ni introducir dependencias de escritura hacia Monday.
+3. No debe romper la altura base de 38 px usada por el fallback de virtualización.
+4. Los overrides se aplican al final del cascade para evitar refactors destructivos de decenas de hojas existentes.
+5. Cada cambio visual estructural debe preservar focus visible y semántica accesible.
+6. Producción no se modifica mientras la PR #6 permanezca Draft.
+
+## Estado de paridad global
+
+La paridad funcional principal permanece cerrada en código. Esta fase añade un nuevo eje explícito de trabajo: **paridad visual / look & feel**. Hasta completar QA visual real, New Monday no se marcará como visualmente cerrado aunque la funcionalidad correspondiente ya esté validada.
