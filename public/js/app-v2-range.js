@@ -12,21 +12,27 @@
     return [...document.querySelectorAll('.item-row')].filter(row => row.offsetParent !== null);
   };
 
+  app.rangeGridItems = function rangeGridItems() {
+    if (typeof this.keyboardVisibleItems === 'function') return this.keyboardVisibleItems();
+    if (typeof this.filteredBoardItems === 'function') return this.filteredBoardItems();
+    return [];
+  };
+
   app.rangePoint = function rangePoint(itemId, columnId) {
     return { itemId: String(itemId || ''), columnId: String(columnId || '') };
   };
 
   app.rangeCoordinates = function rangeCoordinates(point) {
     if (!point) return null;
-    const rows = this.visibleGridRows();
-    const rowIndex = rows.findIndex(row => String(row.dataset.itemId) === String(point.itemId));
+    const items = this.rangeGridItems();
+    const rowIndex = items.findIndex(item => String(item._id) === String(point.itemId));
     const columns = this.effectiveColumns();
     const columnIndex = columns.findIndex(column => String(column.id) === String(point.columnId));
     if (rowIndex < 0 || columnIndex < 0) return null;
-    return { rowIndex, columnIndex, rows, columns };
+    return { rowIndex, columnIndex, items, columns };
   };
 
-  app.selectedRangeCells = function selectedRangeCells() {
+  app.selectedRangeEntries = function selectedRangeEntries() {
     const start = this.rangeCoordinates(this.rangeAnchor);
     const end = this.rangeCoordinates(this.rangeFocus || this.rangeAnchor);
     if (!start || !end) return [];
@@ -36,16 +42,37 @@
     const colMax = Math.max(start.columnIndex, end.columnIndex);
     const result = [];
     for (let r = rowMin; r <= rowMax; r += 1) {
-      const row = start.rows[r];
-      const cells = [];
+      const item = start.items[r];
+      const entries = [];
       for (let c = colMin; c <= colMax; c += 1) {
         const column = start.columns[c];
-        const cell = row?.querySelector(`.dynamic-cell[data-column-id="${CSS.escape(String(column.id))}"]`);
-        if (cell) cells.push({ cell, row, column, rowIndex: r, columnIndex: c });
+        if (item && column) entries.push({ item, column, rowIndex: r, columnIndex: c });
       }
-      if (cells.length) result.push(cells);
+      if (entries.length) result.push(entries);
     }
     return result;
+  };
+
+  app.cellForRangePoint = function cellForRangePoint(point) {
+    if (!point) return null;
+    const row = [...document.querySelectorAll('.item-row[data-item-id]')]
+      .find(node => String(node.dataset.itemId || '') === String(point.itemId));
+    if (!row) return null;
+    return [...row.querySelectorAll('.dynamic-cell[data-column-id]')]
+      .find(node => String(node.dataset.columnId || '') === String(point.columnId)) || null;
+  };
+
+  app.selectedRangeCells = function selectedRangeCells() {
+    return this.selectedRangeEntries().map(entries => entries.map(entry => ({
+      ...entry,
+      row: [...document.querySelectorAll('.item-row[data-item-id]')]
+        .find(node => String(node.dataset.itemId || '') === String(entry.item._id)) || null,
+      cell: this.cellForRangePoint({ itemId: entry.item._id, columnId: entry.column.id })
+    })).filter(entry => entry.cell));
+  };
+
+  app.rangeSelectionCount = function rangeSelectionCount() {
+    return this.selectedRangeEntries().reduce((sum, entries) => sum + entries.length, 0);
   };
 
   app.applyRangeHighlight = function applyRangeHighlight() {
@@ -60,19 +87,13 @@
     focusCell?.classList.add('nm-range-focus');
   };
 
-  app.cellForRangePoint = function cellForRangePoint(point) {
-    if (!point) return null;
-    const row = document.querySelector(`.item-row[data-item-id="${CSS.escape(String(point.itemId))}"]`);
-    return row?.querySelector(`.dynamic-cell[data-column-id="${CSS.escape(String(point.columnId))}"]`) || null;
-  };
-
   app.setRange = function setRange(anchor, focus = anchor, { announce = false } = {}) {
     if (!anchor?.itemId || !anchor?.columnId) return;
     this.rangeAnchor = this.rangePoint(anchor.itemId, anchor.columnId);
     this.rangeFocus = this.rangePoint(focus?.itemId || anchor.itemId, focus?.columnId || anchor.columnId);
     this.applyRangeHighlight();
     if (announce) {
-      const count = this.selectedRangeCells().flat().length;
+      const count = this.rangeSelectionCount();
       if (count > 1) this.showToast(`${count} celdas seleccionadas`);
     }
   };
@@ -90,6 +111,7 @@
 
   app.extendRangeTo = function extendRangeTo(itemId, columnId, { focus = true, announce = false } = {}) {
     if (!this.rangeAnchor) this.rangeAnchor = this.rangePoint(this.activeCell?.itemId || itemId, this.activeCell?.columnId || columnId);
+    if (focus && typeof this.ensureVirtualItemRendered === 'function') this.ensureVirtualItemRendered(itemId);
     this.rangeFocus = this.rangePoint(itemId, columnId);
     this.activeCell = this.rangePoint(itemId, columnId);
     document.querySelectorAll('.nm-active-cell').forEach(node => node.classList.remove('nm-active-cell'));
@@ -98,7 +120,7 @@
     if (focus) cell?.focus({ preventScroll: true });
     this.applyRangeHighlight();
     if (announce) {
-      const count = this.selectedRangeCells().flat().length;
+      const count = this.rangeSelectionCount();
       if (count > 1) this.showToast(`${count} celdas seleccionadas`);
     }
   };
@@ -112,24 +134,39 @@
     if (key === 'ArrowRight') nextColumn += 1;
     if (key === 'ArrowUp') nextRow -= 1;
     if (key === 'ArrowDown') nextRow += 1;
-    nextRow = Math.max(0, Math.min(current.rows.length - 1, nextRow));
+    nextRow = Math.max(0, Math.min(current.items.length - 1, nextRow));
     nextColumn = Math.max(0, Math.min(current.columns.length - 1, nextColumn));
-    const row = current.rows[nextRow];
+    const item = current.items[nextRow];
     const column = current.columns[nextColumn];
-    if (!row || !column) return;
-    this.extendRangeTo(row.dataset.itemId, column.id);
+    if (!item || !column) return;
+    this.extendRangeTo(item._id, column.id);
     this.cellForRangePoint(this.rangeFocus)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   };
 
+  app.rangeClipboardTextForEntry = function rangeClipboardTextForEntry(entry) {
+    const cell = this.cellForRangePoint({ itemId: entry.item._id, columnId: entry.column.id });
+    if (cell) return originalClipboardTextForCell.call(this, cell);
+    if (typeof this.valueFor === 'function') {
+      const value = this.valueFor(entry.item, entry.column);
+      if (typeof this.displayValue === 'function') return String(this.displayValue(value) ?? '');
+      if (value === null || value === undefined) return '';
+      if (typeof value === 'object') return String(value.text ?? value.displayValue ?? value.label ?? value.value ?? '');
+      return String(value);
+    }
+    const value = entry.item?.columnValues?.[entry.column.id];
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'object') return String(value.text ?? value.displayValue ?? value.label ?? value.value ?? '');
+    return String(value);
+  };
+
   app.rangeClipboardText = function rangeClipboardText() {
-    const rows = this.selectedRangeCells();
+    const rows = this.selectedRangeEntries();
     if (!rows.length) return '';
-    return rows.map(entries => entries.map(entry => originalClipboardTextForCell.call(this, entry.cell)).join('\t')).join('\n');
+    return rows.map(entries => entries.map(entry => this.rangeClipboardTextForEntry(entry)).join('\t')).join('\n');
   };
 
   app.clipboardTextForCell = function clipboardTextForCellWithRange(cell) {
-    const selected = this.selectedRangeCells();
-    if (selected.flat().length > 1) return this.rangeClipboardText();
+    if (this.rangeSelectionCount() > 1) return this.rangeClipboardText();
     return originalClipboardTextForCell.call(this, cell);
   };
 
@@ -165,7 +202,7 @@
       document.addEventListener('pointerup', () => {
         if (!this.rangeDragging) return;
         this.rangeDragging = false;
-        const count = this.selectedRangeCells().flat().length;
+        const count = this.rangeSelectionCount();
         if (count > 1) this.showToast(`${count} celdas seleccionadas`);
       });
       document.addEventListener('keydown', event => {
