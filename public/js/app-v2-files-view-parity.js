@@ -46,7 +46,7 @@
   };
 
   app.filesGalleryEntries = function filesGalleryEntries(updateRecords = []) {
-    const fileColumns = this.effectiveColumns().filter(column => column.type === 'file');
+    const fileColumns = this.effectiveColumns().filter(column => ['file', 'files'].includes(String(column.type || '').toLowerCase()));
     const entries = [];
     const groupFor = item => this.effectiveGroups().find(group => group.id === item?.groupId || group.title === item?.group) || null;
 
@@ -89,6 +89,69 @@
     return originalRenderSavedView(viewId);
   };
 
+  app.formatStorageBytes = function formatStorageBytes(value) {
+    const bytes = Number(value || 0);
+    if (!bytes) return '0 B';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+  };
+
+  app.openFileStorageManager = async function openFileStorageManager() {
+    this.openModal(`<div class="modal-card file-storage-modal">
+      <div class="modal-header"><div><h2>Almacenamiento de archivos</h2><p>Revisión segura de GridFS de New Monday</p></div><button type="button" class="modal-close" data-close-modal>×</button></div>
+      <div class="file-storage-loading"><span class="spinner"></span> Buscando archivos huérfanos…</div>
+      <div class="modal-actions"><button type="button" class="button primary" data-close-modal>Cerrar</button></div>
+    </div>`);
+    try {
+      const report = await this.api('/api/files/orphans');
+      const host = document.querySelector('.file-storage-modal');
+      if (!host) return;
+      const rows = (report.orphans || []).map(file => `<li data-orphan-file="${this.escapeAttr(file.id)}"><div><strong>${this.escapeHtml(file.name || 'Archivo')}</strong><span>${this.escapeHtml(file.mimetype || '')}</span></div><small>${this.escapeHtml(this.formatStorageBytes(file.size))}${file.uploadedAt ? ` · ${this.escapeHtml(new Date(file.uploadedAt).toLocaleString('es-ES'))}` : ''}</small></li>`).join('');
+      host.querySelector('.file-storage-loading')?.remove();
+      const panel = document.createElement('div');
+      panel.className = 'file-storage-report';
+      panel.innerHTML = `<div class="file-storage-summary"><div><strong>${Number(report.orphanCount || 0)}</strong><span>huérfanos</span></div><div><strong>${this.escapeHtml(this.formatStorageBytes(report.orphanBytes))}</strong><span>recuperables</span></div><div><strong>${Number(report.scanned || 0)}</strong><span>revisados</span></div></div>
+        <p>Un archivo huérfano está en el almacenamiento local pero ya no está referenciado por ningún elemento, subitem, Update o respuesta. Esta revisión no modifica Monday.</p>
+        ${report.limited ? '<div class="file-storage-warning">La revisión alcanzó el límite de seguridad. Puede haber más archivos fuera de esta muestra.</div>' : ''}
+        ${rows ? `<ul class="file-storage-orphans">${rows}</ul>` : '<div class="file-storage-clean">✓ No hay archivos huérfanos detectados.</div>'}`;
+      host.querySelector('.modal-actions')?.before(panel);
+      if (report.orphanCount) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'button danger file-storage-cleanup';
+        button.textContent = `Eliminar ${Number(report.orphanCount)} huérfanos`;
+        button.addEventListener('click', async () => {
+          const ok = confirm(`Eliminar ${Number(report.orphanCount)} archivos huérfanos (${this.formatStorageBytes(report.orphanBytes)}) de New Monday? Se comprobarán de nuevo las referencias antes de borrar.`);
+          if (!ok) return;
+          button.disabled = true;
+          button.textContent = 'Comprobando y eliminando…';
+          try {
+            const result = await this.api('/api/files/orphans/cleanup', {
+              method: 'POST',
+              body: JSON.stringify({
+                confirm: report.confirmationRequired,
+                fileIds: (report.orphans || []).map(file => file.id)
+              })
+            });
+            this.showToast(`${Number(result.deletedCount || 0)} archivos huérfanos eliminados`);
+            this.closeModal();
+            this.openFileStorageManager();
+          } catch (error) {
+            button.disabled = false;
+            button.textContent = `Eliminar ${Number(report.orphanCount)} huérfanos`;
+            this.showToast(error.message, true);
+          }
+        });
+        const actions = host.querySelector('.modal-actions');
+        actions?.prepend(button);
+      }
+    } catch (error) {
+      const loading = document.querySelector('.file-storage-modal .file-storage-loading');
+      if (loading) loading.innerHTML = `<span class="file-storage-error">No se pudo revisar el almacenamiento: ${this.escapeHtml(error.message)}</span>`;
+    }
+  };
+
   app.renderFilesGallery = async function renderFilesGallery(view) {
     const content = document.getElementById('content');
     if (!content) return;
@@ -123,11 +186,12 @@
       <div class="files-gallery-header">
         <div><h2>${this.escapeHtml(view?.name || 'Archivos')}</h2><p>Archivos de columnas y conversaciones de este tablero.</p></div>
         <div class="files-gallery-stats"><span>${entries.length} archivos</span>${localCount ? `<span>${localCount} locales</span>` : ''}${importedCount ? `<span>${importedCount} importados</span>` : ''}${updateCount ? `<span>${updateCount} en Updates</span>` : ''}</div>
-        <div class="files-gallery-layout"><button type="button" data-files-layout="grid" class="${layout === 'grid' ? 'active' : ''}" title="Cuadrícula">▦</button><button type="button" data-files-layout="list" class="${layout === 'list' ? 'active' : ''}" title="Lista">☷</button></div>
+        <div class="files-gallery-layout"><button type="button" data-file-storage-manager title="Administrar almacenamiento local">⚙</button><button type="button" data-files-layout="grid" class="${layout === 'grid' ? 'active' : ''}" title="Cuadrícula">▦</button><button type="button" data-files-layout="list" class="${layout === 'list' ? 'active' : ''}" title="Lista">☷</button></div>
       </div>
       ${entries.length ? `<div class="files-gallery-content">${cards}</div>` : '<div class="files-gallery-empty"><strong>No hay archivos todavía</strong><span>Añade un archivo desde una celda Archivo o desde Updates.</span></div>'}
     </div>`;
 
     content.querySelectorAll('[data-files-layout]').forEach(button => button.addEventListener('click', () => this.setFilesGalleryLayout(view, button.dataset.filesLayout)));
+    content.querySelector('[data-file-storage-manager]')?.addEventListener('click', () => this.openFileStorageManager());
   };
 })();
