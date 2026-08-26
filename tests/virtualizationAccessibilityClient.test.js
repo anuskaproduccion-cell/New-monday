@@ -84,20 +84,21 @@ const accessibilityApp = {
   renderViewTabs() {},
   renderSidebar() {}
 };
-
-vm.runInNewContext(accessibilitySource, {
+const accessibilityContext = vm.createContext({
   app: accessibilityApp,
   document: {},
   requestAnimationFrame: callback => callback(),
-  console,
-  CSS: { escape: value => String(value) }
+  console
 });
+vm.runInContext(accessibilitySource, accessibilityContext);
 
 assert.strictEqual(typeof accessibilityApp.accessibilityRowIndexForItem, 'function');
-accessibilityApp.virtualBoardEnabled = true;
-accessibilityApp.virtualItemPositions = new Map([
-  ['item-350', { groupId: 'group-a', index: 349, total: 500 }]
-]);
+vm.runInContext(`
+  app.virtualBoardEnabled = true;
+  app.virtualItemPositions = new Map([
+    ['item-350', { groupId: 'group-a', index: 349, total: 500 }]
+  ]);
+`, accessibilityContext);
 assert.strictEqual(
   accessibilityApp.accessibilityRowIndexForItem('item-350', 2),
   351,
