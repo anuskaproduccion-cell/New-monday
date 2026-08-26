@@ -123,6 +123,14 @@
     });
   };
 
+  app.accessibilityRowIndexForItem = function accessibilityRowIndexForItem(itemId, fallback = 2) {
+    if (this.virtualBoardEnabled && this.virtualItemPositions instanceof Map) {
+      const position = this.virtualItemPositions.get(String(itemId));
+      if (position && Number.isFinite(Number(position.index))) return Number(position.index) + 2;
+    }
+    return Number(fallback) || 2;
+  };
+
   app.focusModelCell = function focusModelCell(itemId, columnId, announcement = '') {
     if (!itemId || !columnId) return;
     if (typeof this.ensureVirtualItemRendered === 'function') this.ensureVirtualItemRendered(itemId);
@@ -175,7 +183,7 @@
     const content = document.getElementById('content');
     if (!content) return;
     const columns = this.effectiveColumns();
-    let rowIndex = 1;
+    const fallbackRowIndexes = new Map();
 
     content.querySelectorAll('table.board-table').forEach(table => {
       table.setAttribute('role', 'grid');
@@ -185,10 +193,19 @@
         header.setAttribute('role', 'columnheader');
         header.setAttribute('scope', 'col');
       });
+      let localRowIndex = 2;
+      const tableRows = [...table.querySelectorAll('.item-row[data-item-id]')];
+      tableRows.forEach(row => fallbackRowIndexes.set(row, localRowIndex++));
+      if (!table.hasAttribute('aria-rowcount')) table.setAttribute('aria-rowcount', String(tableRows.length + 1));
     });
 
     const renderedRows = [...content.querySelectorAll('.item-row[data-item-id]')];
-    if (!this.activeCell && renderedRows.length && columns.length) {
+    const activeRendered = Boolean(this.activeCell && renderedRows.some(row => {
+      if (String(row.dataset.itemId || '') !== String(this.activeCell?.itemId || '')) return false;
+      return Boolean(row.querySelector(`.dynamic-cell[data-column-id="${CSS.escape(String(this.activeCell?.columnId || ''))}"]`));
+    }));
+
+    if ((!this.activeCell || !activeRendered) && renderedRows.length && columns.length) {
       this.activeCell = { itemId: String(renderedRows[0].dataset.itemId), columnId: String(columns[0].id) };
     }
 
@@ -197,16 +214,18 @@
       const item = this.findItem?.(itemId);
       const selected = this.selectedItems.has(itemId);
       row.setAttribute('role', 'row');
-      row.setAttribute('aria-rowindex', String(rowIndex++));
+      row.setAttribute('aria-rowindex', String(this.accessibilityRowIndexForItem(itemId, fallbackRowIndexes.get(row) || 2)));
       row.setAttribute('aria-selected', selected ? 'true' : 'false');
       row.classList.toggle('selected', selected);
 
       row.querySelectorAll('.dynamic-cell[data-column-id]').forEach(cell => {
         const columnId = String(cell.dataset.columnId || '');
-        const column = columns.find(entry => String(entry.id) === columnId);
+        const columnIndex = columns.findIndex(entry => String(entry.id) === columnId);
+        const column = columnIndex >= 0 ? columns[columnIndex] : null;
         const active = String(this.activeCell?.itemId || '') === itemId && String(this.activeCell?.columnId || '') === columnId;
         const valueText = cell.innerText?.trim().replace(/\s+/g, ' ') || '';
         cell.setAttribute('role', 'gridcell');
+        if (columnIndex >= 0) cell.setAttribute('aria-colindex', String(columnIndex + 4));
         cell.setAttribute('aria-selected', active ? 'true' : 'false');
         cell.setAttribute('aria-label', `${column?.title || 'Columna'} · ${item?.name || 'Elemento'}${valueText ? ` · ${valueText}` : ''}`);
         cell.tabIndex = active ? 0 : -1;
