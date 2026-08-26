@@ -70,7 +70,7 @@ Este documento complementa `MONDAY_PARITY_AUDIT_2026-08-25.md` y registra el est
 
 El lote funcional de accesibilidad, virtualización y realtime quedó verde en ambas puertas de CI el 2026-08-26:
 
-1. `New Monday v2 validation`: `npm test`, audit de dependencias y syntax checks: **PASS**; STAGING/recovery/auditoría publicada no se ejecutaron porque no hubo disparador explícito.
+1. `New Monday v2 validation`: `npm test`, audit de dependencias y syntax checks: **PASS**; STAGING/recovery/auditoría publicada no se ejecutaron porque no hubo disparador explícito. El workflow general comprueba ahora también la ruta SSE, el hub realtime y los tres módulos cliente nuevos.
 2. `New Monday group and timeline parity validation`: `npm test`, `npm audit --omit=dev --audit-level=high` y syntax checks específicos, incluidos accesibilidad, virtualización, realtime, ruta SSE y hub de eventos: **PASS**.
 
-Los commits posteriores que solo actualizan documentación vuelven a disparar CI, pero no alteran el comportamiento validado del lote funcional.
+Los commits posteriores que solo actualizan documentación o cobertura de CI vuelven a disparar las puertas, pero no alteran el comportamiento funcional ya validado.
