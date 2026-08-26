@@ -25,10 +25,21 @@
       return schema;
     } catch (error) {
       console.warn('Could not load subitem schema:', error.message);
-      const fallback = { found: false, parentBoardId: id, columns: [] };
+      const fallback = { found: false, mode: 'none', customized: false, parentBoardId: id, columns: [] };
       this.subitemSchemaCache.set(id, fallback);
       return fallback;
     }
+  };
+
+  app.refreshSubitemSchema = async function refreshSubitemSchema({ rerender = true } = {}) {
+    const boardId = String(this.currentBoardId() || '');
+    if (!boardId) return null;
+    this.subitemSchemaCache.delete(boardId);
+    const schema = await this.loadSubitemSchema(boardId);
+    if (String(this.currentBoardId() || '') !== boardId) return schema;
+    this.subitemSchema = schema;
+    if (rerender) this.renderCurrentView();
+    return schema;
   };
 
   app.selectBoard = async function selectBoardWithSubitemSchema(board) {
@@ -44,6 +55,12 @@
   app.effectiveSubitemColumns = function effectiveSubitemColumns() {
     return (this.subitemSchema?.columns || [])
       .filter(column => !column.hidden && !['name', 'subtasks'].includes(String(column.type || '').toLowerCase()))
+      .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+  };
+
+  app.allManagedSubitemColumns = function allManagedSubitemColumns() {
+    return (this.subitemSchema?.columns || [])
+      .filter(column => !['name', 'subtasks'].includes(String(column.type || '').toLowerCase()))
       .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
   };
 
@@ -84,7 +101,8 @@
     return {
       name: schema.internalBoardName || 'Subitems',
       columns: this.effectiveSubitemColumns().length,
-      internalMondayId: schema.internalMondayId || null
+      internalMondayId: schema.internalMondayId || null,
+      mode: schema.mode || (schema.customized ? 'local' : 'imported')
     };
   };
 
@@ -110,9 +128,10 @@
       </tr>`;
     }).join('');
 
+    const modeLabel = summary?.mode === 'local' ? 'Esquema local' : 'Esquema importado';
     return `<tr class="subitem-own-schema-host" data-subitem-schema-parent="${this.escapeAttr(parentItem._id)}"><td colspan="${colspan}">
       <div class="subitem-own-shell">
-        <div class="subitem-own-meta"><strong>Subitems</strong><span>${columns.length} columnas propias</span>${summary?.name ? `<small title="Esquema local importado">${this.escapeHtml(summary.name)}</small>` : ''}</div>
+        <div class="subitem-own-meta"><strong>Subitems</strong><span>${columns.length} columnas propias</span>${summary?.name ? `<small title="Esquema de referencia">${this.escapeHtml(summary.name)}</small>` : ''}<em>${this.escapeHtml(modeLabel)}</em><button type="button" class="subitem-schema-manage-button" data-subitem-schema-manage aria-label="Administrar columnas de subitems">⚙ Columnas</button></div>
         <div class="subitem-own-scroll">
           <table class="subitem-own-table">
             <thead><tr><th class="subitem-own-select"></th><th class="subitem-own-name-head">Subitem</th>${header}<th class="subitem-own-actions"></th></tr></thead>
@@ -128,8 +147,8 @@
     if (!this.subitemSchema?.found || !this.expandedSubitems.has(String(item._id)) || !this.subitemsFor(item._id).length) return html;
 
     // The core renderer aligns subitems to parent columns. Remove those generated
-    // rows and replace them with a nested table driven by the internal subitem
-    // board schema. The parent board schema and imported fingerprints stay intact.
+    // rows and replace them with a nested table driven by the internal/local
+    // subitem schema. The imported Monday schema and fingerprints stay intact.
     html = html.replace(/<tr class="subitem-row">[\s\S]*?<\/tr>/g, '');
     const nested = this.subitemNestedTableHtml(item, parentColumns);
     if (!nested) return html;
@@ -139,4 +158,142 @@
       ? `${html.slice(0, composerIndex)}${nested}${html.slice(composerIndex)}`
       : `${html}${nested}`;
   };
+
+  app.subitemSchemaManagerHtml = function subitemSchemaManagerHtml() {
+    const schema = this.subitemSchema || { mode: 'none', columns: [] };
+    const columns = this.allManagedSubitemColumns();
+    const local = schema.mode === 'local' || schema.customized;
+    const sourceText = local
+      ? 'Este esquema es local de New Monday. Puedes crear, reordenar y configurar columnas sin modificar Monday.'
+      : schema.mode === 'imported'
+        ? 'Estas columnas proceden del tablero interno de subitems de Monday. Personalízalas para crear una copia local editable.'
+        : 'Este tablero no tiene un esquema interno detectado. Puedes crear uno local para sus subitems.';
+
+    const rows = columns.map((column, index) => `<div class="subitem-schema-row" data-subitem-schema-row="${this.escapeAttr(column.id)}">
+      <div class="subitem-schema-order">
+        <button type="button" data-subitem-column-move="up" data-column-id="${this.escapeAttr(column.id)}" ${!local || index === 0 ? 'disabled' : ''} aria-label="Subir columna">↑</button>
+        <button type="button" data-subitem-column-move="down" data-column-id="${this.escapeAttr(column.id)}" ${!local || index === columns.length - 1 ? 'disabled' : ''} aria-label="Bajar columna">↓</button>
+      </div>
+      <label>Nombre<input data-subitem-column-title="${this.escapeAttr(column.id)}" value="${this.escapeAttr(column.title)}" ${local ? '' : 'disabled'}></label>
+      <label>Tipo<input value="${this.escapeAttr(column.type)}" disabled></label>
+      <label class="subitem-schema-description">Descripción<input data-subitem-column-description="${this.escapeAttr(column.id)}" value="${this.escapeAttr(column.description || '')}" ${local ? '' : 'disabled'} placeholder="Opcional"></label>
+      <label class="subitem-schema-visible"><input type="checkbox" data-subitem-column-visible="${this.escapeAttr(column.id)}" ${column.hidden ? '' : 'checked'} ${local ? '' : 'disabled'}> Visible</label>
+      <button type="button" class="subitem-schema-remove" data-subitem-column-remove="${this.escapeAttr(column.id)}" ${local ? '' : 'disabled'} aria-label="Retirar columna">×</button>
+    </div>`).join('');
+
+    const typeOptions = [
+      ['text', 'Texto'], ['numbers', 'Números'], ['status', 'Estado'], ['people', 'Personas'],
+      ['date', 'Fecha'], ['timeline', 'Cronograma'], ['dropdown', 'Dropdown'], ['dependency', 'Dependencia'],
+      ['world_clock', 'Reloj mundial'], ['email', 'Email'], ['link', 'Enlace'], ['files', 'Archivos']
+    ].map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
+
+    return `<form id="subitem-schema-manager" class="modal-card subitem-schema-manager">
+      <div class="modal-header"><div><h2>Columnas de subitems</h2><p>${this.escapeHtml(this.currentBoard?.name || '')}</p></div><button type="button" class="modal-close" data-close-modal>×</button></div>
+      <div class="subitem-schema-source ${local ? 'is-local' : ''}"><strong>${local ? 'Esquema local editable' : schema.mode === 'imported' ? 'Esquema importado de referencia' : 'Sin esquema local'}</strong><span>${this.escapeHtml(sourceText)}</span></div>
+      ${!local ? `<button type="button" class="button primary subitem-schema-customize" data-subitem-schema-customize>${schema.mode === 'imported' ? 'Personalizar esquema' : 'Crear esquema local'}</button>` : ''}
+      <div class="subitem-schema-list">${rows || '<div class="subitem-schema-empty">Aún no hay columnas propias de subitems.</div>'}</div>
+      ${local ? `<div class="subitem-schema-add"><h3>Añadir columna</h3><div class="subitem-schema-add-fields"><input name="subitemColumnTitle" placeholder="Nombre de la columna" required><select name="subitemColumnType">${typeOptions}</select><button class="button primary" type="submit">＋ Añadir</button></div></div>` : ''}
+      <div class="modal-actions"><button type="button" class="button" data-close-modal>Cerrar</button></div>
+    </form>`;
+  };
+
+  app.openSubitemSchemaManager = function openSubitemSchemaManager() {
+    this.openModal(this.subitemSchemaManagerHtml());
+    const form = document.getElementById('subitem-schema-manager');
+    if (!form) return;
+
+    form.querySelector('[data-subitem-schema-customize]')?.addEventListener('click', async buttonEvent => {
+      const button = buttonEvent.currentTarget;
+      button.disabled = true;
+      try {
+        await this.api(`/api/boards/${encodeURIComponent(this.currentBoardId())}/subitem-schema/initialize`, { method: 'POST', body: '{}' });
+        await this.refreshSubitemSchema({ rerender: true });
+        this.openSubitemSchemaManager();
+        this.showToast('Esquema local de subitems activado');
+      } catch (error) {
+        button.disabled = false;
+        this.showToast(error.message, true);
+      }
+    });
+
+    form.querySelectorAll('[data-subitem-column-title]').forEach(input => input.addEventListener('change', async () => {
+      const title = input.value.trim();
+      if (!title) return this.openSubitemSchemaManager();
+      await this.patchSubitemColumn(input.dataset.subitemColumnTitle, { title });
+    }));
+
+    form.querySelectorAll('[data-subitem-column-description]').forEach(input => input.addEventListener('change', async () => {
+      await this.patchSubitemColumn(input.dataset.subitemColumnDescription, { description: input.value.trim() });
+    }));
+
+    form.querySelectorAll('[data-subitem-column-visible]').forEach(input => input.addEventListener('change', async () => {
+      await this.patchSubitemColumn(input.dataset.subitemColumnVisible, { hidden: !input.checked });
+    }));
+
+    form.querySelectorAll('[data-subitem-column-move]').forEach(button => button.addEventListener('click', async () => {
+      const columns = this.allManagedSubitemColumns();
+      const index = columns.findIndex(column => String(column.id) === String(button.dataset.columnId));
+      const target = button.dataset.subitemColumnMove === 'up' ? index - 1 : index + 1;
+      if (index < 0 || target < 0 || target >= columns.length) return;
+      [columns[index], columns[target]] = [columns[target], columns[index]];
+      try {
+        await this.api(`/api/boards/${encodeURIComponent(this.currentBoardId())}/subitem-columns/reorder`, {
+          method: 'POST',
+          body: JSON.stringify({ columnIds: columns.map(column => column.id) })
+        });
+        await this.refreshSubitemSchema({ rerender: true });
+        this.openSubitemSchemaManager();
+      } catch (error) { this.showToast(error.message, true); }
+    }));
+
+    form.querySelectorAll('[data-subitem-column-remove]').forEach(button => button.addEventListener('click', async () => {
+      const column = this.allManagedSubitemColumns().find(entry => String(entry.id) === String(button.dataset.subitemColumnRemove));
+      if (!column) return;
+      if (!confirm(`Retirar “${column.title}” del esquema de subitems? Los valores guardados se conservarán.`)) return;
+      try {
+        await this.api(`/api/boards/${encodeURIComponent(this.currentBoardId())}/subitem-columns/${encodeURIComponent(column.id)}`, { method: 'DELETE' });
+        await this.refreshSubitemSchema({ rerender: true });
+        this.openSubitemSchemaManager();
+        this.showToast('Columna retirada; sus valores se conservaron');
+      } catch (error) { this.showToast(error.message, true); }
+    }));
+
+    if (this.subitemSchema?.mode === 'local' || this.subitemSchema?.customized) {
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        const data = new FormData(form);
+        const title = String(data.get('subitemColumnTitle') || '').trim();
+        const type = String(data.get('subitemColumnType') || 'text');
+        if (!title) return;
+        try {
+          await this.api(`/api/boards/${encodeURIComponent(this.currentBoardId())}/subitem-columns`, {
+            method: 'POST',
+            body: JSON.stringify({ title, type })
+          });
+          await this.refreshSubitemSchema({ rerender: true });
+          this.openSubitemSchemaManager();
+          this.showToast('Columna de subitems añadida');
+        } catch (error) { this.showToast(error.message, true); }
+      });
+    }
+  };
+
+  app.patchSubitemColumn = async function patchSubitemColumn(columnId, patch) {
+    try {
+      await this.api(`/api/boards/${encodeURIComponent(this.currentBoardId())}/subitem-columns/${encodeURIComponent(columnId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch)
+      });
+      await this.refreshSubitemSchema({ rerender: true });
+      this.openSubitemSchemaManager();
+      this.showToast('Columna de subitems actualizada');
+    } catch (error) { this.showToast(error.message, true); }
+  };
+
+  document.addEventListener('click', event => {
+    const button = event.target?.closest?.('[data-subitem-schema-manage]');
+    if (!button) return;
+    event.preventDefault();
+    app.openSubitemSchemaManager();
+  });
 })();
