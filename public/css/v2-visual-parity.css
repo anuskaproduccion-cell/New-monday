@@ -112,6 +112,26 @@ body{
   font-weight:600;
   letter-spacing:-.025em;
 }
+.board-title-inline-input{
+  font-size:24px!important;
+  line-height:1.2!important;
+  font-weight:600!important;
+  letter-spacing:-.025em;
+  color:var(--nm-text)!important;
+  border:1px solid var(--nm-primary)!important;
+  border-radius:var(--nm-radius-control)!important;
+  background:var(--nm-surface)!important;
+  box-shadow:0 0 0 1px var(--nm-primary)!important;
+}
+.board-description-inline-input{
+  font-size:12px!important;
+  line-height:1.4!important;
+  color:var(--nm-text)!important;
+  border:1px solid var(--nm-primary)!important;
+  border-radius:var(--nm-radius-control)!important;
+  background:var(--nm-surface)!important;
+  box-shadow:0 0 0 1px var(--nm-primary)!important;
+}
 .board-icon{font-size:21px}
 .star-button{font-size:21px;padding:2px 4px;border-radius:var(--nm-radius-control)}
 .star-button:hover{background:var(--nm-surface-hover)}
