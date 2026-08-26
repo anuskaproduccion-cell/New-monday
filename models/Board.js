@@ -47,6 +47,12 @@ const boardSchema = new mongoose.Schema({
   columns: { type: [columnSchema], default: [] },
   views: { type: [viewSchema], default: [] },
 
+  // Subitems imported from Monday can use a separate internal board schema.
+  // Once a user customizes that schema in New Monday, a local copy lives here
+  // so the imported/internal Monday structure remains immutable.
+  subitemColumns: { type: [columnSchema], default: [] },
+  subitemSchemaCustomized: { type: Boolean, default: false },
+
   internal: { type: Boolean, default: false },
   technical: { type: Boolean, default: false },
   parentBoardMondayId: { type: String, default: null },
