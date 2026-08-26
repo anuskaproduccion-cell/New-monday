@@ -9,7 +9,7 @@
     "staging:isolated": "node scripts/runIsolatedMondayStaging.js",
     "recovery:smoke": "node scripts/runIsolatedExcelRecoverySmoke.js",
     "sync:drive-backup": "node scripts/syncBackupToDrive.js",
-    "test": "node tests/formulaEngine.test.js && node tests/dependencyEngine.test.js && node tests/mondayNormalizer.test.js && node tests/mondayStagingImporter.test.js && node tests/mondayReadOnlyClient.test.js && node tests/isolatedStagingGuard.test.js && node tests/stagingFingerprint.test.js && node tests/stagingPromotion.test.js && node tests/bulkItems.test.js && node tests/accessControl.test.js && node tests/cutover.test.js && node tests/excelBackup.test.js && node tests/excelRecovery.test.js && node tests/driveBackup.test.js && node tests/files.test.js && node tests/subitemSchema.test.js && node tests/boardOperations.test.js && node tests/concurrencyGuard.test.js && node tests/workspaceFolders.test.js"
+    "test": "node tests/formulaEngine.test.js && node tests/dependencyEngine.test.js && node tests/mondayNormalizer.test.js && node tests/mondayStagingImporter.test.js && node tests/mondayReadOnlyClient.test.js && node tests/isolatedStagingGuard.test.js && node tests/stagingFingerprint.test.js && node tests/stagingPromotion.test.js && node tests/bulkItems.test.js && node tests/accessControl.test.js && node tests/cutover.test.js && node tests/excelBackup.test.js && node tests/excelRecovery.test.js && node tests/driveBackup.test.js && node tests/files.test.js && node tests/subitemSchema.test.js && node tests/boardOperations.test.js && node tests/concurrencyGuard.test.js && node tests/workspaceFolders.test.js && node tests/realtimeHub.test.js"
   },
   "dependencies": {
     "exceljs": "^4.4.0",
