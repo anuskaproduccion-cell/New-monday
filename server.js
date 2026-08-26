@@ -108,6 +108,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 const workspacesRouter = require('./routes/workspaces');
 const viewsRouter = require('./routes/views');
 const boardsRouter = require('./routes/boards');
+const boardOperationsRouter = require('./routes/boardOperations');
 const subitemSchemaRouter = require('./routes/subitemSchema');
 const bulkItemsRouter = require('./routes/bulkItems');
 const itemsRouter = require('./routes/items');
@@ -135,6 +136,7 @@ function mondayCutoverGuard(req, res, next) {
 }
 
 app.use('/api/workspaces', workspacesRouter);
+app.use('/api/boards', boardOperationsRouter);
 app.use('/api/boards', subitemSchemaRouter);
 app.use('/api/boards', viewsRouter);
 app.use('/api/boards', boardsRouter);
