@@ -39,10 +39,30 @@
     return false;
   };
 
+  app.realtimeNeedsFullShellRefresh = function realtimeNeedsFullShellRefresh(change = {}) {
+    return !change.item;
+  };
+
+  app.mergeRealtimeChanges = function mergeRealtimeChanges(current = null, incoming = {}) {
+    if (!current) return incoming;
+    const preserveFullRefresh = this.realtimeNeedsFullShellRefresh(current) || this.realtimeNeedsFullShellRefresh(incoming);
+    if (!preserveFullRefresh) return incoming;
+    const fullChange = this.realtimeNeedsFullShellRefresh(incoming) ? incoming : current;
+    return {
+      ...incoming,
+      board: incoming.board || current.board,
+      item: null,
+      type: fullChange.type || incoming.type || current.type || 'change',
+      field: fullChange.field || '',
+      message: fullChange.message || incoming.message || current.message || '',
+      meta: fullChange.meta || incoming.meta || current.meta || {}
+    };
+  };
+
   app.scheduleRealtimeRefresh = function scheduleRealtimeRefresh(change = {}, delay = 350) {
     const boardId = String(change.board || '');
     if (!boardId || boardId !== String(this.currentBoardId() || '')) return;
-    this.realtimePendingChange = change;
+    this.realtimePendingChange = this.mergeRealtimeChanges(this.realtimePendingChange, change);
     clearTimeout(this.realtimeRefreshTimer);
     this.realtimeRefreshTimer = setTimeout(async () => {
       if (this.realtimeInteractionInProgress()) {
@@ -55,13 +75,9 @@
     }, delay);
   };
 
-  app.realtimeNeedsFullShellRefresh = function realtimeNeedsFullShellRefresh(change = {}) {
-    return !change.item;
-  };
-
   app.refreshCurrentBoardFromRealtime = async function refreshCurrentBoardFromRealtime(change = {}) {
     if (this.realtimeRefreshing) {
-      this.realtimePendingChange = change;
+      this.realtimePendingChange = this.mergeRealtimeChanges(this.realtimePendingChange, change);
       return;
     }
     const boardId = String(this.currentBoardId() || '');
