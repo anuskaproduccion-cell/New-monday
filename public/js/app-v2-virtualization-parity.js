@@ -96,8 +96,10 @@
     const headerAllowance = 78;
     const viewportTop = scroller.scrollTop;
     const viewportBottom = viewportTop + scroller.clientHeight;
-    const sectionTop = section.offsetTop;
-    const sectionBottom = sectionTop + section.offsetHeight;
+    const scrollerRect = scroller.getBoundingClientRect();
+    const sectionRect = section.getBoundingClientRect();
+    const sectionTop = viewportTop + (sectionRect.top - scrollerRect.top);
+    const sectionBottom = sectionTop + sectionRect.height;
     if (sectionBottom < viewportTop - scroller.clientHeight || sectionTop > viewportBottom + scroller.clientHeight) return current;
 
     const localTop = Math.max(0, viewportTop - sectionTop - headerAllowance);
@@ -124,14 +126,15 @@
   };
 
   app.bindVirtualBoardScroll = function bindVirtualBoardScroll() {
-    const scroller = document.querySelector('#content .board-scroll');
-    if (!scroller || !this.virtualBoardEnabled) return;
-    scroller.dataset.virtualized = 'true';
+    const scroller = document.getElementById('content');
+    const board = scroller?.querySelector('.board-scroll');
+    if (!scroller || !board || !this.virtualBoardEnabled) return;
+    board.dataset.virtualized = 'true';
     const total = this.filteredBoardItems().length;
-    const rendered = scroller.querySelectorAll('.item-row[data-item-id]').length;
-    scroller.querySelectorAll('table.board-table').forEach(table => table.setAttribute('aria-rowcount', String(total + 1)));
+    const rendered = board.querySelectorAll('.item-row[data-item-id]').length;
+    board.querySelectorAll('table.board-table').forEach(table => table.setAttribute('aria-rowcount', String(total + 1)));
 
-    const toolbar = document.querySelector('#content .board-toolbar');
+    const toolbar = scroller.querySelector('.board-toolbar');
     if (toolbar && !toolbar.querySelector('.virtualization-badge')) {
       const badge = document.createElement('span');
       badge.className = 'virtualization-badge';
@@ -159,20 +162,19 @@
     start = Math.floor(start / RANGE_STEP) * RANGE_STEP;
     start = Math.min(Math.max(0, position.total - WINDOW_SIZE), start);
     this.virtualBoardRanges.set(position.groupId, { start, end: Math.min(position.total, start + WINDOW_SIZE), total: position.total });
-    const scroller = document.querySelector('#content .board-scroll');
+    const scroller = document.getElementById('content');
     this.virtualPreservedScrollTop = scroller?.scrollTop ?? null;
     this.renderBoard();
     return true;
   };
 
   app.renderBoard = function renderBoardVirtualized() {
-    const existingScroller = document.querySelector('#content .board-scroll');
-    const scrollTop = this.virtualPreservedScrollTop ?? existingScroller?.scrollTop ?? 0;
+    const content = document.getElementById('content');
+    const scrollTop = this.virtualPreservedScrollTop ?? content?.scrollTop ?? 0;
     this.virtualPreservedScrollTop = null;
     this.prepareVirtualBoard();
     baseRenderBoard();
-    const scroller = document.querySelector('#content .board-scroll');
-    if (scroller && scrollTop > 0) scroller.scrollTop = scrollTop;
+    if (content && scrollTop > 0) content.scrollTop = scrollTop;
     this.bindVirtualBoardScroll();
   };
 })();
