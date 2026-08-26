@@ -88,9 +88,11 @@
 
   app.currentActiveCellElement = function currentActiveCellElement() {
     if (!this.activeCell) return null;
-    const row = document.querySelector(`.item-row[data-item-id="${CSS.escape(this.activeCell.itemId)}"]`);
+    const row = [...document.querySelectorAll('.item-row[data-item-id]')]
+      .find(node => String(node.dataset.itemId || '') === String(this.activeCell.itemId));
     if (!row) return null;
-    return row.querySelector(`.dynamic-cell[data-column-id="${CSS.escape(this.activeCell.columnId)}"]`);
+    return [...row.querySelectorAll('.dynamic-cell[data-column-id]')]
+      .find(node => String(node.dataset.columnId || '') === String(this.activeCell.columnId)) || null;
   };
 
   app.moveActiveCell = function moveActiveCell(direction) {
@@ -173,10 +175,16 @@
     return { value: { type: 'text', text, value: text } };
   };
 
+  app.keyboardPasteItems = function keyboardPasteItems() {
+    if (typeof this.keyboardVisibleItems === 'function') return this.keyboardVisibleItems();
+    if (typeof this.filteredBoardItems === 'function') return this.filteredBoardItems();
+    return [];
+  };
+
   app.pasteClipboardGrid = async function pasteClipboardGrid(grid) {
     if (!this.activeCell || !grid?.length) return;
-    const rows = [...document.querySelectorAll('.item-row')].filter(row => row.offsetParent !== null);
-    const startRow = rows.findIndex(row => String(row.dataset.itemId) === String(this.activeCell.itemId));
+    const items = this.keyboardPasteItems();
+    const startRow = items.findIndex(item => String(item._id) === String(this.activeCell.itemId));
     const columns = this.effectiveColumns();
     const startColumn = columns.findIndex(column => String(column.id) === String(this.activeCell.columnId));
     if (startRow < 0 || startColumn < 0) return;
@@ -185,9 +193,9 @@
     let skipped = 0;
     let firstError = '';
     for (let rowOffset = 0; rowOffset < grid.length; rowOffset += 1) {
-      const row = rows[startRow + rowOffset];
-      if (!row) { skipped += grid[rowOffset].length; continue; }
-      const itemId = row.dataset.itemId;
+      const item = items[startRow + rowOffset];
+      if (!item) { skipped += grid[rowOffset].length; continue; }
+      const itemId = item._id;
       for (let columnOffset = 0; columnOffset < grid[rowOffset].length; columnOffset += 1) {
         const column = columns[startColumn + columnOffset];
         if (!column) { skipped += 1; continue; }
@@ -204,7 +212,8 @@
     }
 
     this.renderBoard();
-    this.setActiveCell(this.activeCell.itemId, this.activeCell.columnId, { focus: false });
+    if (typeof this.focusModelCell === 'function') this.focusModelCell(this.activeCell.itemId, this.activeCell.columnId);
+    else this.setActiveCell(this.activeCell.itemId, this.activeCell.columnId, { focus: false });
     if (applied) this.showToast(`${applied} celdas pegadas${skipped ? ` · ${skipped} omitidas` : ''}`);
     else this.showToast(firstError || 'No se pudo pegar el rango', true);
     if (firstError && applied) console.warn('New Monday range paste:', firstError);
@@ -220,7 +229,8 @@
     const updated = await this.updateColumnValue(itemId, columnId, parsed.value);
     if (updated) {
       this.renderBoard();
-      this.setActiveCell(itemId, columnId, { focus: false });
+      if (typeof this.focusModelCell === 'function') this.focusModelCell(itemId, columnId);
+      else this.setActiveCell(itemId, columnId, { focus: false });
       this.showToast('Valor pegado');
     }
   };

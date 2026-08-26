@@ -3,9 +3,21 @@ const express = require('express');
 const router = express.Router();
 const Workspace = require('../models/Workspace');
 const Board = require('../models/Board');
+const { publishRealtimeChange } = require('../services/realtimeHub');
 
 function generatedFolderId() {
   return `folder_${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;
+}
+
+function publishWorkspaceRealtime(workspace, { type, message, global = false, meta = {} } = {}) {
+  if (!workspace || !type) return 0;
+  return publishRealtimeChange({
+    scope: global ? 'global' : 'workspace',
+    workspace: workspace._id ? String(workspace._id) : null,
+    type,
+    message: message || type,
+    meta
+  });
 }
 
 router.get('/', async (req, res) => {
@@ -36,6 +48,11 @@ router.post('/', async (req, res) => {
   try {
     const workspace = new Workspace(req.body);
     await workspace.save();
+    publishWorkspaceRealtime(workspace, {
+      global: true,
+      type: 'workspace_created',
+      message: `Workspace creado: ${workspace.name}`
+    });
     res.status(201).json(workspace);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -60,6 +77,11 @@ router.post('/:id/folders', async (req, res) => {
     }
     workspace.folders.push(folder);
     await workspace.save();
+    publishWorkspaceRealtime(workspace, {
+      type: 'workspace_folder_created',
+      message: `Carpeta creada: ${folder.title}`,
+      meta: { folderId: folder.id }
+    });
     return res.status(201).json(folder);
   } catch (err) {
     return res.status(400).json({ error: err.message });
@@ -80,6 +102,11 @@ router.patch('/:id/folders/:folderId', async (req, res) => {
     if (req.body.order !== undefined) folder.order = Number(req.body.order);
     if (req.body.archived !== undefined) folder.archived = Boolean(req.body.archived);
     await workspace.save();
+    publishWorkspaceRealtime(workspace, {
+      type: 'workspace_folder_updated',
+      message: `Carpeta actualizada: ${folder.title}`,
+      meta: { folderId: String(folder.id), changedFields: Object.keys(req.body || {}) }
+    });
     return res.json(folder);
   } catch (err) {
     return res.status(400).json({ error: err.message });
@@ -102,6 +129,11 @@ router.post('/:id/folders/reorder', async (req, res) => {
       if (orderMap.has(String(folder.id))) folder.order = orderMap.get(String(folder.id));
     });
     await workspace.save();
+    publishWorkspaceRealtime(workspace, {
+      type: 'workspace_folders_reordered',
+      message: 'Orden de carpetas actualizado',
+      meta: { folderCount: requested.length }
+    });
     return res.json(workspace.folders.filter(folder => !folder.archived).sort((a, b) => a.order - b.order));
   } catch (err) {
     return res.status(400).json({ error: err.message });
@@ -117,10 +149,15 @@ router.delete('/:id/folders/:folderId', async (req, res) => {
 
     folder.archived = true;
     await workspace.save();
-    await Board.updateMany(
+    const boardUpdate = await Board.updateMany(
       { workspaceRef: workspace._id, folderId: String(folder.id) },
       { $set: { folderId: '' } }
     );
+    publishWorkspaceRealtime(workspace, {
+      type: 'workspace_folder_archived',
+      message: `Carpeta archivada: ${folder.title}`,
+      meta: { folderId: String(folder.id), boardsUnassigned: Number(boardUpdate.modifiedCount || 0) }
+    });
     return res.json({ folder, boardsUnassigned: true });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -135,6 +172,12 @@ router.patch('/:id', async (req, res) => {
       { new: true, runValidators: true }
     );
     if (!workspace) return res.status(404).json({ error: 'Workspace not found' });
+    publishWorkspaceRealtime(workspace, {
+      global: true,
+      type: 'workspace_updated',
+      message: `Workspace actualizado: ${workspace.name}`,
+      meta: { changedFields: Object.keys(req.body || {}) }
+    });
     res.json(workspace);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -149,6 +192,11 @@ router.delete('/:id', async (req, res) => {
       { new: true }
     );
     if (!workspace) return res.status(404).json({ error: 'Workspace not found' });
+    publishWorkspaceRealtime(workspace, {
+      global: true,
+      type: 'workspace_archived',
+      message: `Workspace archivado: ${workspace.name}`
+    });
     res.json(workspace);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -157,3 +205,4 @@ router.delete('/:id', async (req, res) => {
 
 module.exports = router;
 module.exports.generatedFolderId = generatedFolderId;
+module.exports.publishWorkspaceRealtime = publishWorkspaceRealtime;

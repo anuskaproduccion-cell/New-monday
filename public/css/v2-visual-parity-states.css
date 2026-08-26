@@ -1,0 +1,266 @@
+/* Phase 4: final interaction/system-state parity layer. */
+
+/* Shared keyboard focus language. Keep this last so legacy component colors cannot mute focus. */
+.button:focus-visible,
+.view-tab:focus-visible,
+.star-button:focus-visible,
+.board-menu-trigger:focus-visible,
+.workspace-switcher:focus-visible,
+.sidebar-nav-item:focus-visible,
+.sidebar-favorite-item:focus-visible,
+.sidebar-recent-item:focus-visible,
+.sidebar-phase-header:focus-visible,
+.sidebar-folder-menu-button:focus-visible,
+.sidebar-folder-toolbar button:focus-visible,
+.group-header:focus-visible,
+.menu-button:focus-visible,
+.column-menu-button:focus-visible,
+.add-item-row:focus-visible,
+.floating-menu button:focus-visible,
+.status-menu button:focus-visible,
+.update-rich-toolbar button:focus-visible,
+.update-file-button:focus-visible,
+.reply-file-button:focus-visible,
+.files-gallery-layout button:focus-visible,
+.modal-card button:focus-visible,
+.modal-card input:focus-visible,
+.modal-card select:focus-visible,
+.modal-card textarea:focus-visible{
+  outline:2px solid var(--nm-primary)!important;
+  outline-offset:2px!important;
+}
+
+.dynamic-cell:focus-visible,
+.dynamic-cell.nm-active-cell{
+  position:relative;
+  z-index:4;
+  outline:0!important;
+  box-shadow:inset 0 0 0 2px var(--nm-primary)!important;
+  background-color:#f8f7ff!important;
+}
+
+/* Hierarchical sidebar: boards, favorites, recents, phases and folders share one state language. */
+.sidebar-nav-item,
+.sidebar-favorite-item,
+.sidebar-recent-item{
+  border-radius:var(--nm-radius-control)!important;
+  opacity:.86!important;
+}
+.sidebar-nav-item:hover,
+.sidebar-favorite-item:hover,
+.sidebar-recent-item:hover{
+  background:rgba(255,255,255,.08)!important;
+  opacity:1!important;
+}
+.sidebar-nav-item.active,
+.sidebar-favorite-item.active,
+.sidebar-recent-item.active{
+  background:rgba(97,97,255,.72)!important;
+  box-shadow:inset 2px 0 rgba(255,255,255,.8)!important;
+  opacity:1!important;
+}
+.sidebar-phase-header{
+  border-radius:var(--nm-radius-control)!important;
+  color:rgba(255,255,255,.72)!important;
+}
+.sidebar-phase-header:hover{
+  background:rgba(255,255,255,.07)!important;
+  color:#fff!important;
+}
+.sidebar-folder{
+  border-color:rgba(255,255,255,.07)!important;
+  border-radius:var(--nm-radius-control)!important;
+}
+.sidebar-folder.is-drop-target{
+  border-color:var(--nm-primary)!important;
+  background:rgba(97,97,255,.14)!important;
+}
+.sidebar-folder-toolbar button,
+.sidebar-folder-menu-button{
+  border-radius:var(--nm-radius-control)!important;
+}
+.sidebar-folder-toolbar button:hover,
+.sidebar-folder-menu-button:hover{
+  background:rgba(255,255,255,.10)!important;
+  color:#fff!important;
+}
+.sidebar-folder-toolbar span.is-drop-target{
+  border-color:var(--nm-primary)!important;
+  background:rgba(97,97,255,.16)!important;
+  color:#fff!important;
+}
+.sidebar-recent-copy strong{font-weight:500!important}
+.sidebar-recent-copy small{color:rgba(255,255,255,.52)!important}
+.sidebar-recent-item.active .sidebar-recent-copy small{color:rgba(255,255,255,.76)!important}
+
+/* Pressed/active feedback without moving layout. */
+.button:active:not(:disabled),
+.view-tab:active,
+.star-button:active,
+.board-menu-trigger:active,
+.sidebar-nav-item:active,
+.sidebar-favorite-item:active,
+.sidebar-recent-item:active,
+.sidebar-phase-header:active,
+.sidebar-folder-menu-button:active,
+.sidebar-folder-toolbar button:active,
+.menu-button:active,
+.column-menu-button:active,
+.floating-menu button:active:not(:disabled),
+.update-rich-toolbar button:active:not(:disabled),
+.update-file-button:active:not(:disabled),
+.reply-file-button:active:not(:disabled),
+.files-gallery-layout button:active:not(:disabled){
+  box-shadow:inset 0 0 0 1px rgba(50,51,56,.12)!important;
+  filter:brightness(.98);
+}
+.button.primary:active:not(:disabled){
+  background:var(--nm-primary-hover)!important;
+  border-color:var(--nm-primary-hover)!important;
+  box-shadow:inset 0 1px 2px rgba(22,22,50,.22)!important;
+}
+
+/* Drag/drop and column-resize feedback. */
+.item-row[draggable="true"],
+.group-header-row[draggable="true"],
+.dynamic-col-head[draggable="true"]{cursor:grab!important}
+.item-row.is-drag-source,
+.sidebar-nav-item.is-dragging{
+  opacity:.52!important;
+  filter:saturate(.82);
+}
+.item-row.is-drop-target td{
+  box-shadow:inset 0 2px 0 var(--nm-primary)!important;
+}
+.group-section.is-group-drop-target{
+  outline:1px dashed var(--nm-primary)!important;
+  outline-offset:2px!important;
+  border-radius:var(--nm-radius-panel)!important;
+  background:linear-gradient(rgba(97,97,255,.025),rgba(97,97,255,.025));
+}
+.group-header-row.is-drop-target,
+.dynamic-col-head.is-drop-target{
+  box-shadow:inset 0 2px 0 var(--nm-primary)!important;
+}
+.dynamic-col-head:active,
+.group-header-row:active,
+.item-row:active{cursor:grabbing!important}
+.column-resize-handle::after{
+  width:1px!important;
+  background:transparent!important;
+}
+.dynamic-col-head:hover .column-resize-handle::after,
+.column-resize-handle.is-active::after{
+  background:var(--nm-primary)!important;
+}
+.column-resize-handle.is-active::after{width:2px!important}
+.is-resizing-column,.is-resizing-column *{
+  cursor:col-resize!important;
+  user-select:none!important;
+}
+
+/* Disabled state is consistent across native and aria-disabled controls. */
+button:disabled,
+.button:disabled,
+[role="button"][aria-disabled="true"],
+[role="menuitem"][aria-disabled="true"],
+[role="option"][aria-disabled="true"]{
+  opacity:.46!important;
+  cursor:not-allowed!important;
+  filter:none!important;
+  box-shadow:none!important;
+}
+button:disabled:hover,
+.button:disabled:hover,
+[role="button"][aria-disabled="true"]:hover,
+[role="menuitem"][aria-disabled="true"]:hover,
+[role="option"][aria-disabled="true"]:hover{
+  filter:none!important;
+}
+
+/* View-overflow and selected menu states. */
+.view-tab-overflow small{
+  background:var(--nm-surface-hover)!important;
+  color:var(--nm-muted)!important;
+}
+.view-overflow-menu button.active,
+.floating-menu button[aria-current="true"],
+.floating-menu button[aria-selected="true"]{
+  background:var(--nm-primary-soft)!important;
+  color:var(--nm-primary)!important;
+}
+
+/* Realtime state belongs to the same compact control family as the board header. */
+.realtime-badge{
+  min-height:28px!important;
+  padding:0 8px!important;
+  border:1px solid var(--nm-border)!important;
+  border-radius:14px!important;
+  background:var(--nm-surface)!important;
+  color:var(--nm-muted)!important;
+  font-size:10px!important;
+  font-weight:500;
+  box-shadow:none!important;
+}
+.realtime-badge i{width:6px!important;height:6px!important}
+.realtime-badge[data-state="live"]{
+  color:#087f5b!important;
+  border-color:#b8e8d3!important;
+  background:#f4fbf8!important;
+}
+.realtime-badge[data-state="connecting"]{
+  color:#8c6417!important;
+  border-color:#f6d9a4!important;
+  background:#fff9ed!important;
+}
+.realtime-badge[data-state="offline"],
+.realtime-badge[data-state="unsupported"]{
+  color:var(--nm-danger)!important;
+  border-color:#f0c2c8!important;
+  background:#fff6f7!important;
+}
+
+/* System feedback surfaces. */
+#toast-root{gap:6px!important}
+.toast{
+  padding:9px 12px!important;
+  border-radius:var(--nm-radius-control)!important;
+  background:var(--nm-text)!important;
+  color:#fff!important;
+  box-shadow:var(--nm-shadow-menu)!important;
+  font-size:11px!important;
+  line-height:1.35;
+}
+.toast.error{background:var(--nm-danger)!important}
+.connection-error{
+  max-width:720px!important;
+  margin:44px auto!important;
+  padding:14px 16px!important;
+  border:1px solid #f0c2c8!important;
+  border-radius:var(--nm-radius-panel)!important;
+  background:#fff7f8!important;
+  color:var(--nm-text)!important;
+}
+.connection-error>span{
+  width:30px!important;
+  height:30px!important;
+  background:var(--nm-danger)!important;
+}
+.connection-error h2{font-size:16px!important;font-weight:600!important}
+.connection-error p{color:var(--nm-muted)!important;font-size:12px!important}
+.loading,.empty-state{color:var(--nm-muted)!important}
+.loading .spinner,.spinner{border-top-color:var(--nm-primary)!important}
+
+/* Avoid accidental motion differences between newer and legacy components. */
+@media(prefers-reduced-motion:reduce){
+  html:focus-within{scroll-behavior:auto!important}
+  *,*::before,*::after{
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.01ms!important;
+  }
+  .realtime-badge i,.gantt-bar,.floating-menu,.status-menu,.modal-card,.updates-drawer,.toast{
+    animation:none!important;
+    transition:none!important;
+  }
+}

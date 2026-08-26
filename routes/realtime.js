@@ -1,5 +1,6 @@
 const express = require('express');
 const { addRealtimeClient, realtimeClientCount } = require('../services/realtimeHub');
+const { normalizeClientId } = require('../services/requestContext');
 
 const router = express.Router();
 
@@ -12,7 +13,7 @@ router.get('/stream', (req, res) => {
   res.flushHeaders?.();
   res.write(`retry: 2500\nevent: ready\ndata: ${JSON.stringify({ ok: true, clients: realtimeClientCount() + 1, at: new Date().toISOString() })}\n\n`);
 
-  const remove = addRealtimeClient(res);
+  const remove = addRealtimeClient(res, { clientId: normalizeClientId(req.query.clientId || '') });
   const heartbeat = setInterval(() => {
     try { res.write(`: heartbeat ${Date.now()}\n\n`); }
     catch { clearInterval(heartbeat); remove(); }

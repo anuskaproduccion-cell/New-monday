@@ -115,25 +115,52 @@
     });
   };
 
+  app.applyOrderedBoardPrimaryItems = function applyOrderedBoardPrimaryItems(boardId, orderedItems = []) {
+    const sourceBoardId = String(boardId || '');
+    if (!sourceBoardId || !Array.isArray(orderedItems)) return false;
+    const preserved = this.items.filter(item => {
+      const itemBoardId = String(item.board?._id || item.board || '');
+      return itemBoardId !== sourceBoardId || Boolean(item.isSubitem);
+    });
+    this.items = preserved.concat(orderedItems);
+    return true;
+  };
+
+  app.applyOrderedBoardStructure = function applyOrderedBoardStructure(boardId, field, orderedEntries = []) {
+    const sourceBoardId = String(boardId || '');
+    if (!sourceBoardId || !['groups', 'columns'].includes(field) || !Array.isArray(orderedEntries)) return false;
+    const board = this.boards.find(entry => String(entry._id) === sourceBoardId) || null;
+    if (board) board[field] = orderedEntries;
+    if (String(this.currentBoardId() || '') === sourceBoardId && this.currentBoard) {
+      this.currentBoard[field] = orderedEntries;
+    }
+    return Boolean(board || String(this.currentBoardId() || '') === sourceBoardId);
+  };
+
   app.reorderItemByDrop = async function reorderItemByDrop(draggedId, targetId) {
+    const sourceBoardId = String(this.currentBoardId() || '');
     const dragged = this.findItem(draggedId);
     const target = this.findItem(targetId);
-    if (!dragged || !target) return;
+    if (!sourceBoardId || !dragged || !target) return;
 
     const groups = this.effectiveGroups();
     const sourceGroup = groups.find(group => group.id === dragged.groupId || group.title === dragged.group);
     const targetGroup = groups.find(group => group.id === target.groupId || group.title === target.group);
     if (!targetGroup) return;
 
-    const targetItems = this.boardItems().filter(item => (item.groupId || item.group) === (targetGroup.id || targetGroup.title) && item._id !== draggedId);
+    const sourceItemsSnapshot = this.boardItems();
+    const targetItems = sourceItemsSnapshot.filter(item => (item.groupId || item.group) === (targetGroup.id || targetGroup.title) && item._id !== draggedId);
     const targetIndex = Math.max(0, targetItems.findIndex(item => item._id === targetId));
     targetItems.splice(targetIndex, 0, dragged);
+    const remainingSource = sourceGroup && sourceGroup.id !== targetGroup.id
+      ? sourceItemsSnapshot.filter(item => item._id !== draggedId && (item.groupId || item.group) === (sourceGroup.id || sourceGroup.title))
+      : null;
 
     try {
-      await this.api('/api/item-ordering/reorder', {
+      let orderedItems = await this.api('/api/item-ordering/reorder', {
         method: 'POST',
         body: JSON.stringify({
-          boardId: this.currentBoardId(),
+          boardId: sourceBoardId,
           itemIds: targetItems.map(item => item._id),
           groupId: targetGroup.id,
           group: targetGroup.title,
@@ -141,12 +168,11 @@
         })
       });
 
-      if (sourceGroup && sourceGroup.id !== targetGroup.id) {
-        const remainingSource = this.boardItems().filter(item => item._id !== draggedId && (item.groupId || item.group) === (sourceGroup.id || sourceGroup.title));
-        await this.api('/api/item-ordering/reorder', {
+      if (remainingSource) {
+        orderedItems = await this.api('/api/item-ordering/reorder', {
           method: 'POST',
           body: JSON.stringify({
-            boardId: this.currentBoardId(),
+            boardId: sourceBoardId,
             itemIds: remainingSource.map(item => item._id),
             groupId: sourceGroup.id,
             group: sourceGroup.title,
@@ -155,7 +181,8 @@
         });
       }
 
-      await this.reloadBoardState();
+      this.applyOrderedBoardPrimaryItems(sourceBoardId, orderedItems);
+      if (String(this.currentBoardId() || '') === sourceBoardId) this.renderCurrentView();
       this.showToast('Orden actualizado');
     } catch (err) {
       this.showToast(err.message, true);
@@ -163,45 +190,57 @@
   };
 
   app.moveItemToGroupEnd = async function moveItemToGroupEnd(itemId, groupId) {
+    const sourceBoardId = String(this.currentBoardId() || '');
     const group = this.effectiveGroups().find(entry => entry.id === groupId);
     const item = this.findItem(itemId);
-    if (!group || !item) return;
+    if (!sourceBoardId || !group || !item) return;
     const targetItems = this.boardItems().filter(entry => entry._id !== itemId && (entry.groupId || entry.group) === (group.id || group.title));
     targetItems.push(item);
     try {
-      await this.api('/api/item-ordering/reorder', {
+      const orderedItems = await this.api('/api/item-ordering/reorder', {
         method: 'POST',
-        body: JSON.stringify({ boardId: this.currentBoardId(), itemIds: targetItems.map(entry => entry._id), groupId: group.id, group: group.title, groupColor: group.color })
+        body: JSON.stringify({ boardId: sourceBoardId, itemIds: targetItems.map(entry => entry._id), groupId: group.id, group: group.title, groupColor: group.color })
       });
-      await this.reloadBoardState();
+      this.applyOrderedBoardPrimaryItems(sourceBoardId, orderedItems);
+      if (String(this.currentBoardId() || '') === sourceBoardId) this.renderCurrentView();
       this.showToast('Elemento movido');
     } catch (err) { this.showToast(err.message, true); }
   };
 
   app.reorderGroupByDrop = async function reorderGroupByDrop(draggedId, targetId) {
+    const sourceBoardId = String(this.currentBoardId() || '');
     const groups = this.effectiveGroups().slice();
     const from = groups.findIndex(group => group.id === draggedId);
     const to = groups.findIndex(group => group.id === targetId);
-    if (from < 0 || to < 0) return;
+    if (!sourceBoardId || from < 0 || to < 0) return;
     const [moved] = groups.splice(from, 1);
     groups.splice(to, 0, moved);
     try {
-      await this.api(`/api/boards/${this.currentBoardId()}/groups/reorder`, { method: 'POST', body: JSON.stringify({ groupIds: groups.map(group => group.id) }) });
-      await this.reloadBoardState();
+      const orderedGroups = await this.api(`/api/boards/${encodeURIComponent(sourceBoardId)}/groups/reorder`, {
+        method: 'POST',
+        body: JSON.stringify({ groupIds: groups.map(group => group.id) })
+      });
+      this.applyOrderedBoardStructure(sourceBoardId, 'groups', orderedGroups);
+      if (String(this.currentBoardId() || '') === sourceBoardId) this.renderCurrentView();
       this.showToast('Grupos reordenados');
     } catch (err) { this.showToast(err.message, true); }
   };
 
   app.reorderColumnByDrop = async function reorderColumnByDrop(draggedId, targetId) {
+    const sourceBoardId = String(this.currentBoardId() || '');
     const columns = (this.currentBoard.columns || []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     const from = columns.findIndex(column => column.id === draggedId);
     const to = columns.findIndex(column => column.id === targetId);
-    if (from < 0 || to < 0) return;
+    if (!sourceBoardId || from < 0 || to < 0) return;
     const [moved] = columns.splice(from, 1);
     columns.splice(to, 0, moved);
     try {
-      await this.api(`/api/boards/${this.currentBoardId()}/columns/reorder`, { method: 'POST', body: JSON.stringify({ columnIds: columns.map(column => column.id) }) });
-      await this.reloadBoardState();
+      const orderedColumns = await this.api(`/api/boards/${encodeURIComponent(sourceBoardId)}/columns/reorder`, {
+        method: 'POST',
+        body: JSON.stringify({ columnIds: columns.map(column => column.id) })
+      });
+      this.applyOrderedBoardStructure(sourceBoardId, 'columns', orderedColumns);
+      if (String(this.currentBoardId() || '') === sourceBoardId) this.renderCurrentView();
       this.showToast('Columnas reordenadas');
     } catch (err) { this.showToast(err.message, true); }
   };

@@ -42,6 +42,19 @@ router.get('/', async (req, res) => {
   }
 });
 
+router.get('/:id', async (req, res) => {
+  try {
+    const query = { _id: req.params.id };
+    if (req.query.includeDeleted !== 'true') query.deletedAt = null;
+    if (req.query.includeArchived !== 'true') query.archived = { $ne: true };
+    const item = await Item.findOne(query);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+    return res.json(item);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 router.patch('/group', async (req, res) => {
   try {
     const { boardId, groupName, groupId, groupColor } = req.body;

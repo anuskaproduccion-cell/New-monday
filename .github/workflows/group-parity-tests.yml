@@ -70,8 +70,13 @@ jobs:
           node --check public/js/app-v2-menu-keyboard-parity.js
           node --check public/js/app-v2-undo-parity.js
           node --check public/js/app-v2-accessibility-parity.js
+          node --check public/js/app-v2-modal-accessibility-parity.js
           node --check public/js/app-v2-virtualization-parity.js
+          node --check public/js/app-v2-virtualization-index-parity.js
+          node --check public/js/app-v2-mutation-tracking-parity.js
           node --check public/js/app-v2-realtime-parity.js
+          node --check public/js/app-v2-realtime-batch-parity.js
+          node --check public/js/app-v2-realtime-origin-parity.js
           node --check models/Board.js
           node --check models/Workspace.js
           node --check models/ItemUpdate.js
@@ -85,6 +90,7 @@ jobs:
           node --check routes/files.js
           node --check routes/realtime.js
           node --check routes/subitemSchema.js
+          node --check services/requestContext.js
           node --check services/realtimeHub.js
           node --check services/stagingPromotion.js
           node --check server.js

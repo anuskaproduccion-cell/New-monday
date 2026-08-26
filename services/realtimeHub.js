@@ -1,4 +1,6 @@
-const clients = new Set();
+const { currentClientId, normalizeClientId } = require('./requestContext');
+
+const clients = new Map();
 let sequence = 0;
 
 function serializeEvent(event) {
@@ -10,15 +12,31 @@ function serializeEvent(event) {
   return `id: ${payload.id}\nevent: change\ndata: ${JSON.stringify(payload)}\n\n`;
 }
 
-function addRealtimeClient(res) {
-  clients.add(res);
+function realtimeScope(event = {}) {
+  const requested = String(event.scope || '').trim().toLowerCase();
+  if (['board', 'workspace', 'global'].includes(requested)) return requested;
+  if (event.board) return 'board';
+  if (event.workspace) return 'workspace';
+  return '';
+}
+
+function addRealtimeClient(res, { clientId = '' } = {}) {
+  clients.set(res, { clientId: normalizeClientId(clientId) });
   return () => clients.delete(res);
 }
 
 function publishRealtimeChange(event) {
-  if (!event || !event.board) return 0;
+  if (!event) return 0;
+  const scope = realtimeScope(event);
+  if (!scope) return 0;
+  if (scope === 'board' && !event.board) return 0;
+  if (scope === 'workspace' && !event.workspace) return 0;
+
+  const originClientId = normalizeClientId(event.originClientId || currentClientId());
   const frame = serializeEvent({
-    board: String(event.board),
+    scope,
+    board: event.board ? String(event.board) : null,
+    workspace: event.workspace ? String(event.workspace) : null,
     item: event.item ? String(event.item) : null,
     type: String(event.type || 'change'),
     field: String(event.field || ''),
@@ -27,7 +45,8 @@ function publishRealtimeChange(event) {
   });
 
   let delivered = 0;
-  for (const res of [...clients]) {
+  for (const [res, client] of [...clients.entries()]) {
+    if (originClientId && client?.clientId && client.clientId === originClientId) continue;
     try {
       res.write(frame);
       delivered += 1;
@@ -51,6 +70,7 @@ module.exports = {
   addRealtimeClient,
   publishRealtimeChange,
   realtimeClientCount,
+  realtimeScope,
   resetRealtimeHubForTests,
   serializeEvent
 };

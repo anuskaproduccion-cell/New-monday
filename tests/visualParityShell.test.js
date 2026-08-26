@@ -1,0 +1,128 @@
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+
+const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'v2-visual-parity.css'), 'utf8');
+const componentCss = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'v2-visual-parity-components.css'), 'utf8');
+const viewCss = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'v2-visual-parity-views.css'), 'utf8');
+const responsiveCss = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'v2-visual-parity-responsive.css'), 'utf8');
+const stateCss = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'v2-visual-parity-states.css'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+
+const expectedTokens = [
+  '--nm-primary:#6161ff',
+  '--nm-text:#323338',
+  '--nm-muted:#676879',
+  '--nm-border:#d0d4e4',
+  '--nm-sidebar:#292f4c',
+  '--nm-row-height:38px'
+];
+expectedTokens.forEach(token => assert.ok(css.includes(token), `missing visual token ${token}`));
+
+[
+  '.sidebar{',
+  '.board-header{',
+  '.board-title-inline-input{',
+  '.board-description-inline-input{',
+  '.view-tabs{',
+  '.group-header{',
+  '.board-table th,.crew-table th,.dynamic-table th{',
+  '.floating-menu,.status-menu{',
+  '.modal-card{'
+].forEach(selector => assert.ok(css.includes(selector), `missing visual parity selector ${selector}`));
+
+assert.ok(css.includes('font-size:24px!important;'), 'inline board title must match the 24px desktop title scale');
+assert.ok(css.includes('.board-description-inline-input{\n  font-size:12px!important;'), 'inline board description must match the desktop subtitle density');
+
+[
+  '.people-picker-menu,',
+  '.dropdown-picker-menu,',
+  '.dependency-picker-menu,',
+  '.world-clock-picker,',
+  '.relation-parity-picker,',
+  '.updates-drawer{',
+  '.update-card{',
+  '.update-rich-toolbar{',
+  '.mention-picker{',
+  '.update-attachment{',
+  '.dynamic-cell[data-save-state]::after,.element-cell[data-save-state]::after{'
+].forEach(selector => assert.ok(componentCss.includes(selector), `missing visual component selector ${selector}`));
+
+[
+  '.gantt-help{',
+  '.gantt-scroller{',
+  '.files-gallery-header{',
+  '.files-gallery-card{',
+  '.lifecycle-item{',
+  '.board-activity-list{',
+  '.backup-modal{',
+  '.backup-summary>div{'
+].forEach(selector => assert.ok(viewCss.includes(selector), `missing visual view selector ${selector}`));
+
+['@media(max-width:1100px)', '@media(max-width:900px)', '@media(max-width:720px)', '@media(max-width:560px)']
+  .forEach(query => assert.ok(responsiveCss.includes(query), `missing responsive breakpoint ${query}`));
+assert.ok(responsiveCss.includes('.sidebar{width:176px}'), '720px shell must compact sidebar without hiding navigation');
+assert.ok(responsiveCss.includes('.sidebar{width:156px}'), '560px shell must preserve a narrow but usable sidebar');
+assert.ok(responsiveCss.includes('.board-title-row h1,.board-title-inline-input{font-size:22px!important}'), '1100px inline title must match visible title scale');
+assert.ok(responsiveCss.includes('.board-title-row h1,.board-title-inline-input{font-size:21px!important}'), '900px inline title must match visible title scale');
+assert.ok(responsiveCss.includes('.board-title-inline-input{font-size:19px!important;'), '720px inline title must match visible title scale');
+assert.ok(responsiveCss.includes('.board-title-inline-input{font-size:17px!important;'), '560px inline title must match visible title scale');
+assert.ok(responsiveCss.includes('.board-description-inline-input{font-size:10px!important;'), 'narrow inline description must follow subtitle density');
+
+[
+  '.button:focus-visible,',
+  '.sidebar-recent-item:focus-visible,',
+  '.sidebar-nav-item,\n.sidebar-favorite-item,\n.sidebar-recent-item{',
+  '.sidebar-phase-header{',
+  '.sidebar-folder.is-drop-target{',
+  '.button:active:not(:disabled),',
+  '.item-row.is-drop-target td{',
+  '.group-section.is-group-drop-target{',
+  '.column-resize-handle.is-active::after{',
+  'button:disabled,',
+  '.realtime-badge{',
+  '.toast{',
+  '.connection-error{',
+  '@media(prefers-reduced-motion:reduce)'
+].forEach(selector => assert.ok(stateCss.includes(selector), `missing visual state selector ${selector}`));
+
+const visualLink = '<link rel="stylesheet" href="/css/v2-visual-parity.css">';
+const componentLink = '<link rel="stylesheet" href="/css/v2-visual-parity-components.css">';
+const viewLink = '<link rel="stylesheet" href="/css/v2-visual-parity-views.css">';
+const responsiveLink = '<link rel="stylesheet" href="/css/v2-visual-parity-responsive.css">';
+const stateLink = '<link rel="stylesheet" href="/css/v2-visual-parity-states.css">';
+assert.ok(html.includes(visualLink), 'visual parity stylesheet must be loaded');
+assert.ok(html.includes(componentLink), 'visual component parity stylesheet must be loaded');
+assert.ok(html.includes(viewLink), 'visual special-view parity stylesheet must be loaded');
+assert.ok(html.includes(responsiveLink), 'responsive visual parity stylesheet must be loaded');
+assert.ok(html.includes(stateLink), 'final interaction/system-state parity stylesheet must be loaded');
+assert.ok(
+  html.indexOf(visualLink) > html.indexOf('<link rel="stylesheet" href="/css/v2-realtime.css">'),
+  'visual parity stylesheet must load after functional/component styles so it can act as the final visual layer'
+);
+assert.ok(
+  html.indexOf(componentLink) > html.indexOf(visualLink),
+  'specialized visual component layer must load after foundation tokens and shell styles'
+);
+assert.ok(
+  html.indexOf(viewLink) > html.indexOf(componentLink),
+  'special-view visual layer must load after picker/updates parity styles'
+);
+assert.ok(
+  html.indexOf(responsiveLink) > html.indexOf(viewLink),
+  'responsive visual layer must load after view/component layers'
+);
+assert.ok(
+  html.indexOf(stateLink) > html.indexOf(responsiveLink),
+  'interaction/system-state layer must load last so focus, pressed, disabled and feedback states cannot be muted by legacy CSS'
+);
+
+assert.ok(componentCss.includes('@media(max-width:900px)'), 'visual component layer must include narrow desktop/tablet adaptation');
+assert.ok(componentCss.includes('@media(max-width:720px)'), 'visual component layer must include mobile drawer adaptation');
+
+assert.ok(
+  !/--nm-row-height:\s*(?!38px)/.test(css),
+  'visual layer must preserve the 38px virtualization fallback contract'
+);
+
+console.log('visual parity shell tests passed');
