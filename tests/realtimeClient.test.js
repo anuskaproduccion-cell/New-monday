@@ -17,13 +17,19 @@ const vm = require('vm');
     clearTimeout
   });
 
+  assert.strictEqual(typeof app.realtimeIsGlobalChange, 'function');
   assert.strictEqual(typeof app.realtimeNeedsFullShellRefresh, 'function');
   assert.strictEqual(typeof app.mergeRealtimeChanges, 'function');
   assert.strictEqual(typeof app.realtimeReadySyncChange, 'function');
+  assert.strictEqual(typeof app.refreshGlobalStateFromRealtime, 'function');
+  assert.strictEqual(app.realtimeIsGlobalChange({ scope: 'workspace' }), true);
+  assert.strictEqual(app.realtimeIsGlobalChange({ scope: 'global' }), true);
+  assert.strictEqual(app.realtimeIsGlobalChange({ scope: 'board', board: 'board-1' }), false);
   assert.strictEqual(app.realtimeNeedsFullShellRefresh({ board: 'board-1', item: 'item-1', type: 'column_value_changed' }), false);
   assert.strictEqual(app.realtimeNeedsFullShellRefresh({ board: 'board-1', item: 'item-1', type: 'item_updated' }), false);
   assert.strictEqual(app.realtimeNeedsFullShellRefresh({ board: 'board-1', type: 'group_items_updated' }), true);
   assert.strictEqual(app.realtimeNeedsFullShellRefresh({ board: 'board-1', type: 'visibility_refresh' }), true);
+  assert.strictEqual(app.realtimeNeedsFullShellRefresh({ scope: 'workspace', workspace: 'workspace-1' }), true);
 
   const fullThenItem = app.mergeRealtimeChanges(
     { board: 'board-1', type: 'board_updated', message: 'Tablero actualizado' },
@@ -49,17 +55,37 @@ const vm = require('vm');
   assert.strictEqual(itemThenItem.type, 'item_updated');
   assert.strictEqual(app.realtimeNeedsFullShellRefresh(itemThenItem), false);
 
+  const itemThenWorkspace = app.mergeRealtimeChanges(
+    { scope: 'board', board: 'board-1', item: 'item-1', type: 'column_value_changed' },
+    { scope: 'workspace', workspace: 'workspace-1', type: 'workspace_folder_updated' }
+  );
+  assert.strictEqual(itemThenWorkspace.scope, 'workspace');
+  assert.strictEqual(itemThenWorkspace.board, null);
+  assert.strictEqual(itemThenWorkspace.item, null);
+  assert.strictEqual(itemThenWorkspace.type, 'workspace_folder_updated');
+
+  const workspaceThenItem = app.mergeRealtimeChanges(
+    { scope: 'workspace', workspace: 'workspace-1', type: 'workspace_folders_reordered' },
+    { scope: 'board', board: 'board-1', item: 'item-1', type: 'item_updated' }
+  );
+  assert.strictEqual(workspaceThenItem.scope, 'workspace');
+  assert.strictEqual(workspaceThenItem.board, null);
+  assert.strictEqual(workspaceThenItem.item, null);
+  assert.strictEqual(workspaceThenItem.type, 'workspace_folders_reordered');
+
   app.currentBoardId = () => 'board-1';
   assert.strictEqual(app.realtimeReadySyncChange(), null, 'first SSE ready event must not refetch data loaded during init');
   const reconnectChange = app.realtimeReadySyncChange();
-  assert.strictEqual(reconnectChange.board, 'board-1');
+  assert.strictEqual(reconnectChange.scope, 'global');
+  assert.strictEqual(reconnectChange.board, null);
   assert.strictEqual(reconnectChange.type, 'realtime_reconnected');
-  assert.strictEqual(app.realtimeNeedsFullShellRefresh(reconnectChange), true);
+  assert.strictEqual(app.realtimeIsGlobalChange(reconnectChange), true);
 
   app.realtimeEverReady = false;
   app.currentBoardId = () => '';
   assert.strictEqual(app.realtimeReadySyncChange(), null);
-  assert.strictEqual(app.realtimeReadySyncChange(), null, 'reconnect without an active board has nothing to resynchronize');
+  const reconnectWithoutBoard = app.realtimeReadySyncChange();
+  assert.strictEqual(reconnectWithoutBoard.scope, 'global', 'reconnect must resync workspace state even without an active board');
 
   let badgeRestores = 0;
   let currentViewRenders = 0;
@@ -94,6 +120,47 @@ const vm = require('vm');
   await app.refreshCurrentBoardFromRealtime({ board: 'board-1', item: 'item-1', type: 'column_value_changed' });
   assert.strictEqual(badgeRestores, 0, 'item refresh must not rebuild or restore the header badge');
   assert.strictEqual(currentViewRenders, 1);
+
+  let globalReloads = 0;
+  let globalSidebarRenders = 0;
+  badgeRestores = 0;
+  currentViewRenders = 0;
+  Object.assign(app, {
+    currentWorkspace: { _id: 'workspace-1', name: 'Workspace 1' },
+    currentBoard: { _id: 'board-1', archived: false, workspaceRef: { _id: 'workspace-1' } },
+    workspaces: [{ _id: 'workspace-1', name: 'Workspace 1' }],
+    boards: [{ _id: 'board-1', archived: false, workspaceRef: { _id: 'workspace-1' } }],
+    currentBoardId() { return this.currentBoard?._id || ''; },
+    workspaceKey(workspace) { return workspace?._id || workspace?.name || ''; },
+    boardBelongsToWorkspace(board, workspace) {
+      return String(board?.workspaceRef?._id || '') === String(workspace?._id || '');
+    },
+    async reloadAll() {
+      globalReloads += 1;
+      this.workspaces = [{ _id: 'workspace-1', name: 'Workspace 1 actualizado' }];
+      this.boards = [{ _id: 'board-1', archived: false, workspaceRef: { _id: 'workspace-1' } }];
+      this.items = [];
+      this.crew = [];
+    },
+    renderWorkspaceSwitcher() {},
+    renderSidebar() { globalSidebarRenders += 1; },
+    renderCrewDatalist() {},
+    renderHeader() {},
+    renderViewTabs() {},
+    renderCurrentView() { currentViewRenders += 1; },
+    ensureRealtimeBadge() { badgeRestores += 1; },
+    visibleBoards() { return this.boards; },
+    renderEmptyState() {},
+    announceA11y() {}
+  });
+
+  await app.refreshGlobalStateFromRealtime({ scope: 'workspace', workspace: 'workspace-1', type: 'workspace_folder_updated' });
+  assert.strictEqual(globalReloads, 1);
+  assert.strictEqual(globalSidebarRenders, 1);
+  assert.strictEqual(currentViewRenders, 1);
+  assert.strictEqual(badgeRestores, 1);
+  assert.strictEqual(app.currentWorkspace.name, 'Workspace 1 actualizado');
+  assert.strictEqual(app.currentBoard._id, 'board-1');
 
   console.log('realtime client refresh policy tests passed');
 })().catch(error => {
