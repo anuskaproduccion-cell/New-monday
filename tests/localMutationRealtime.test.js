@@ -12,6 +12,10 @@ const vm = require('vm');
     path.join(__dirname, '..', 'public', 'js', 'app-v2-realtime-parity.js'),
     'utf8'
   );
+  const realtimeBatchSource = fs.readFileSync(
+    path.join(__dirname, '..', 'public', 'js', 'app-v2-realtime-batch-parity.js'),
+    'utf8'
+  );
 
   let releasePatch;
   const patchGate = new Promise(resolve => { releasePatch = resolve; });
@@ -157,6 +161,7 @@ const vm = require('vm');
     boards: [{ _id: 'board-1', archived: false, workspaceRef: { _id: 'workspace-1' } }],
     workspaces: [{ _id: 'workspace-1', name: 'Workspace local' }],
     items: [{ _id: 'item-1', board: 'board-1', name: 'Local' }],
+    crew: [{ _id: 'crew-1', name: 'Crew local' }],
     currentBoardId() { return this.currentBoard?._id || ''; },
     workspaceKey(workspace) { return workspace?._id || ''; },
     async reloadAll() {
@@ -165,6 +170,7 @@ const vm = require('vm');
       this.workspaces = [{ _id: 'workspace-1', name: 'Snapshot global antiguo' }];
       this.boards = [{ _id: 'board-1', archived: false, workspaceRef: { _id: 'workspace-1' } }];
       this.items = [{ _id: 'item-1', board: 'board-1', name: 'Snapshot remoto antiguo' }];
+      this.crew = [{ _id: 'crew-1', name: 'Crew remoto antiguo' }];
     },
     boardBelongsToWorkspace() { return true; },
     renderWorkspaceSwitcher() { globalRenders += 1; },
@@ -180,7 +186,7 @@ const vm = require('vm');
     setRealtimeState() {}
   };
   vm.runInNewContext(concurrencySource, { app: globalApp, console });
-  vm.runInNewContext(realtimeSource, {
+  const globalRealtimeContext = {
     app: globalApp,
     window: {},
     document,
@@ -189,7 +195,9 @@ const vm = require('vm');
     setTimeout,
     clearTimeout,
     encodeURIComponent
-  });
+  };
+  vm.runInNewContext(realtimeSource, globalRealtimeContext);
+  vm.runInNewContext(realtimeBatchSource, globalRealtimeContext);
   globalApp.scheduleRealtimeRefresh = (change, delay) => globalScheduled.push({ change, delay });
 
   const globalRefresh = globalApp.refreshGlobalStateFromRealtime({
@@ -204,10 +212,22 @@ const vm = require('vm');
   await globalRefresh;
 
   assert.strictEqual(globalRenders, 0, 'an overlapped global snapshot must not repaint the shell before revalidation');
+  assert.strictEqual(globalApp.workspaces[0].name, 'Workspace local', 'overlapped reloadAll must not replace live workspace state');
+  assert.strictEqual(globalApp.items[0].name, 'Local', 'overlapped reloadAll must not replace live item state');
+  assert.strictEqual(globalApp.crew[0].name, 'Crew local', 'overlapped reloadAll must not replace live crew state');
   assert.strictEqual(globalScheduled.length, 1, 'global overlap must schedule one global revalidation');
   assert.strictEqual(globalScheduled[0].change.scope, 'global');
   assert.strictEqual(globalScheduled[0].change.item, null);
   assert.strictEqual(globalScheduled[0].change.meta.localMutationOverlap, true);
+
+  await globalApp.refreshGlobalStateFromRealtime({
+    scope: 'global',
+    type: 'realtime_reconnected'
+  });
+  assert.strictEqual(globalApp.workspaces[0].name, 'Snapshot global antiguo', 'non-overlapped realtime reload must apply the validated workspace snapshot');
+  assert.strictEqual(globalApp.items[0].name, 'Snapshot remoto antiguo', 'non-overlapped realtime reload must apply the validated item snapshot');
+  assert.strictEqual(globalApp.crew[0].name, 'Crew remoto antiguo', 'non-overlapped realtime reload must apply the validated crew snapshot');
+  assert.ok(globalRenders > 0, 'validated global snapshot must repaint the shell');
 
   console.log('local mutation realtime coordination tests passed');
 })().catch(error => {

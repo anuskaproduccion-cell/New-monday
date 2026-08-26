@@ -1,10 +1,44 @@
 (() => {
   const baseNeedsFullShellRefresh = app.realtimeNeedsFullShellRefresh.bind(app);
   const baseItemRefreshMode = app.realtimeItemRefreshMode.bind(app);
+  const baseReloadAll = typeof app.reloadAll === 'function' ? app.reloadAll : null;
   const MAX_BATCH_LATENCY_MS = 1200;
   const INTERACTION_RETRY_MS = 700;
 
   app.realtimeBatchStartedAt = 0;
+
+  if (baseReloadAll) {
+    app.reloadAll = async function reloadAllWithRealtimeSnapshotIsolation(...args) {
+      const canIsolateRealtimeSnapshot = Boolean(
+        this.realtimeRefreshing
+        && typeof this.realtimeLocalMutationVersion === 'function'
+        && typeof this.realtimeLocalMutationChanged === 'function'
+      );
+      if (!canIsolateRealtimeSnapshot) return baseReloadAll.apply(this, args);
+
+      const mutationVersionBeforeReload = this.realtimeLocalMutationVersion();
+      const shadow = Object.create(this);
+      shadow.workspaces = this.workspaces;
+      shadow.boards = this.boards;
+      shadow.items = this.items;
+      shadow.crew = this.crew;
+      shadow.currentWorkspace = this.currentWorkspace;
+
+      let reloadError = null;
+      shadow.showConnectionError = error => { reloadError = error; };
+      await baseReloadAll.apply(shadow, args);
+      if (reloadError) throw reloadError;
+
+      if (this.realtimeLocalMutationChanged(mutationVersionBeforeReload)) return false;
+
+      this.workspaces = shadow.workspaces;
+      this.boards = shadow.boards;
+      this.items = shadow.items;
+      this.crew = shadow.crew;
+      this.currentWorkspace = shadow.currentWorkspace;
+      return true;
+    };
+  }
 
   app.realtimeNeedsFullShellRefresh = function realtimeNeedsFullShellRefreshWithItemBatch(change = {}) {
     if (change?.meta?.itemsOnly === true && !this.realtimeIsGlobalChange(change)) return false;
