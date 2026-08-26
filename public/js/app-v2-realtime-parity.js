@@ -55,6 +55,10 @@
     }, delay);
   };
 
+  app.realtimeNeedsFullShellRefresh = function realtimeNeedsFullShellRefresh(change = {}) {
+    return !change.item;
+  };
+
   app.refreshCurrentBoardFromRealtime = async function refreshCurrentBoardFromRealtime(change = {}) {
     if (this.realtimeRefreshing) {
       this.realtimePendingChange = change;
@@ -65,13 +69,21 @@
 
     this.realtimeRefreshing = true;
     try {
-      const [board, items] = await Promise.all([
-        this.api(`/api/boards/${encodeURIComponent(boardId)}`),
-        this.api(`/api/items/board/${encodeURIComponent(boardId)}?includeSubitems=true`)
-      ]);
+      const fullShellRefresh = this.realtimeNeedsFullShellRefresh(change);
+      let board = this.currentBoard;
+      let items = null;
+
+      if (fullShellRefresh) {
+        [board, items] = await Promise.all([
+          this.api(`/api/boards/${encodeURIComponent(boardId)}`),
+          this.api(`/api/items/board/${encodeURIComponent(boardId)}?includeSubitems=true`)
+        ]);
+      } else {
+        items = await this.api(`/api/items/board/${encodeURIComponent(boardId)}?includeSubitems=true`);
+      }
 
       if (String(this.currentBoardId() || '') !== boardId) return;
-      if (board.archived) {
+      if (fullShellRefresh && board?.archived) {
         await this.reloadAll();
         this.renderWorkspaceSwitcher();
         this.renderSidebar();
@@ -84,19 +96,24 @@
         return;
       }
 
-      const boardIndex = this.boards.findIndex(entry => String(entry._id) === boardId);
-      if (boardIndex >= 0) this.boards[boardIndex] = board;
-      else this.boards.push(board);
-      this.currentBoard = board;
-      this.currentWorkspace = this.workspaces.find(workspace => this.boardBelongsToWorkspace(board, workspace)) || this.currentWorkspace;
+      if (fullShellRefresh && board) {
+        const boardIndex = this.boards.findIndex(entry => String(entry._id) === boardId);
+        if (boardIndex >= 0) this.boards[boardIndex] = board;
+        else this.boards.push(board);
+        this.currentBoard = board;
+        this.currentWorkspace = this.workspaces.find(workspace => this.boardBelongsToWorkspace(board, workspace)) || this.currentWorkspace;
+      }
+
       this.items = this.items
         .filter(item => String(item.board?._id || item.board) !== boardId)
-        .concat(items);
+        .concat(items || []);
 
-      this.renderWorkspaceSwitcher();
-      this.renderSidebar();
-      this.renderHeader();
-      this.renderViewTabs();
+      if (fullShellRefresh) {
+        this.renderWorkspaceSwitcher();
+        this.renderSidebar();
+        this.renderHeader();
+        this.renderViewTabs();
+      }
       this.renderCurrentView();
       this.realtimeLastRefreshAt = Date.now();
 
