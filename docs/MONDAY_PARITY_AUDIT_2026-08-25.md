@@ -1,10 +1,10 @@
 # New Monday · auditoría viva de paridad con Monday
 
-Fecha: 2026-08-25
+Fecha de actualización: 2026-08-26
 
 Regla absoluta: **Monday se consulta en solo lectura. Toda interacción nueva se implementa únicamente en New Monday.**
 
-Esta auditoría es una especificación viva de producto: una diferencia solo se marca como cerrada cuando está implementada en la rama de paridad, pasa CI y queda pendiente únicamente la validación visual antes de fusionar a producción.
+Esta auditoría es una especificación viva de producto: una diferencia solo se marca como cerrada cuando está implementada en la rama de paridad y pasa CI. Antes de fusionar a producción, el lote completo requiere además validación visual.
 
 ## Patrón de referencia inmediato
 
@@ -46,6 +46,7 @@ Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia 
 - [x] Contraer/expandir un grupo.
 - [x] Contraer/expandir todos los grupos desde menú y atajo `Ctrl+G`.
 - [x] Drag & drop de grupos.
+- [x] Resumen compacto visible cuando un grupo está contraído, reutilizando los resúmenes configurados por columna.
 
 ### Tabla y columnas
 
@@ -69,14 +70,17 @@ Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia 
 - [x] Personas: avatares + selector emergente con selección múltiple local.
 - [x] Personas: límite configurable 1/2/3/ilimitadas y selector restringido a equipo/importados conocidos.
 - [x] Estado: selector desde celda + editor de etiquetas y colores, hasta 40 etiquetas y estado gris vacío.
+- [x] Estado: reordenación drag & drop de labels y descripciones locales de etiquetas.
 - [x] Dependencias: selector múltiple compatible con `allowMultipleItems:true`; motor Strict en cascada.
 - [x] Dropdown: chips + selector múltiple.
 - [x] Subitems: abrir/crear inline y editar sus celdas.
+- [x] Subitems: resolver de forma local el tablero interno `Subelementos de …` y usar su esquema real para mapear IDs/tipos de columna cuando difieren del padre, sin copiar ni mutar el esquema importado.
 - [x] Reloj mundial: selector buscable de zona/ciudad, formato 12/24h, UTC offset y horario laboral.
 - [x] Board Relation: picker buscable, uno o varios elementos según configuración y chips de vínculos.
 - [x] Mirror: presentación local según el tipo reflejado en vez de texto plano cuando la semántica está disponible.
 - [x] Files Column: varios archivos, drag & drop, subida desde ordenador, enlace externo, descarga y retirada local.
 - [x] Adjuntos locales persistentes en MongoDB GridFS; no dependen del filesystem efímero de Render.
+- [x] GridFS protege archivos compartidos: no elimina físicamente un archivo mientras siga referenciado por Items/Updates, necesario para duplicaciones seguras.
 - [x] Email y Enlace: representación compacta y editor emergente en vez de inputs permanentes.
 
 ### Vistas
@@ -104,13 +108,17 @@ Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia 
 - [x] Respeto de `show_weekends:false` cuando la vista importada lo configura.
 - [x] Zoom Día / Semana / Mes.
 - [x] Agrupación visual por grupos.
+- [x] Selector de color de barras por Grupo o por primera columna Estado disponible, conservado como preferencia local.
 
 ### Tablero / navegación
 
 - [x] Renombrado inline del tablero haciendo clic en el nombre.
+- [x] Descripción del tablero persistente y editable directamente bajo el nombre.
 - [x] Estrella de favorito funcional y sección Favoritos en el sidebar.
 - [x] Sección Recientes en el sidebar, recordando los últimos tableros abiertos localmente.
-- [x] Menú `⋯` del tablero con renombrar, favorito, copiar enlace, información, actividad y archivo.
+- [x] Sidebar agrupado por fases reconocibles de producción (Pre/Producción, Rodaje, Edición, Post, Otros), con secciones contraíbles locales.
+- [x] Menú `⋯` del tablero con renombrar, descripción, favorito, copiar enlace, información, duplicar, actividad y archivo.
+- [x] Duplicación segura del tablero con grupos, columnas, vistas, items y subitems; la copia elimina IDs de Monday y se convierte en contenido local de New Monday.
 - [x] Deep-link por tablero mediante `?board=<id>`.
 - [x] Archivar tablero localmente sin borrar elementos.
 - [x] Navegador de tableros archivados y restauración desde el menú del workspace.
@@ -121,12 +129,15 @@ Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia 
 - [x] Acceso desde el menú a Actualizaciones, renombrado, duplicado, movimiento, archivo y papelera.
 - [x] Movimiento de elemento mediante picker de grupos con búsqueda y señalización del grupo actual.
 - [x] Popovers y menús se reposicionan durante scroll/resize y se cierran si el ancla sale de pantalla.
+- [x] Navegación por teclado común en menús/selectores emergentes: flechas, Inicio/Fin y Escape con retorno de foco al ancla.
 
 ### Colaboración y continuidad
 
 - [x] Updates/comentarios y respuestas locales.
 - [x] Acceso a Updates desde bocadillo del item y presentación como panel lateral.
+- [x] Indicador/conteo de Updates + respuestas directamente en el item.
 - [x] Adjuntos en Updates y respuestas usando el mismo almacenamiento GridFS.
+- [x] `@menciones` locales con picker restringido a personas conocidas y resaltado visual; no se presentan como notificaciones externas.
 - [x] Actividad/historial local.
 - [x] Archivo, Papelera y restauración de elementos.
 - [x] Exportación Excel, preview de recuperación, conflictos y recuperación validada en staging.
@@ -135,28 +146,25 @@ Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia 
 
 ### Prioridad alta
 
-- [ ] Subitems: modelar esquema de columnas propio de subitems cuando difiera del padre; hoy reutilizamos mayoritariamente el esquema principal.
-- [ ] Gantt: controles de color por Estado/Grupo y configuración más completa.
-- [ ] Gantt: critical path / baseline solo si aportan valor real a los tableros de producción y la configuración los requiere.
-- [ ] Sidebar/workspace: carpetas, jerarquía de navegación y menús más próximos a Monday.
-- [ ] Menú de tablero: duplicación segura, descripción e información compartida sin alterar las huellas de importación.
+- [ ] Gantt: configuración más completa de agrupación/columnas y evaluar critical path / baseline solo si aportan valor real a los tableros de producción.
+- [ ] Sidebar/workspace: carpetas reales/persistentes y jerarquía manual cuando la nomenclatura del tablero no permita inferir una fase.
+- [ ] Subitems: completar administración del esquema local propio (crear/reordenar/configurar columnas de subitems) más allá de mapear correctamente el esquema Monday importado.
+- [ ] Undo/redo local para ediciones recientes con seguridad frente a cambios concurrentes.
 
 ### Prioridad media
 
-- [ ] Estado: drag & drop real para reordenar etiquetas y descripciones de labels.
-- [ ] Files: preview seguro de imágenes/PDF y administración de archivos huérfanos; hoy las descargas se sirven como attachment por seguridad.
-- [ ] Updates: @mentions, indicador/conteo por item y editor enriquecido.
-- [ ] Resumen de columnas también visible de forma útil con grupos contraídos.
+- [ ] Files: preview seguro inline de imágenes/PDF y administración/limpieza explícita de archivos huérfanos.
+- [ ] Updates: editor enriquecido; las `@menciones` ya existen localmente pero no generan notificaciones externas.
 - [ ] Overflow fino de vistas cuando existen muchas vistas operativas reales; el desplazamiento horizontal básico ya está implementado.
 - [ ] Board Relation/Mirror: multi-board mirroring completo cuando una columna conecte varios tableros a la vez.
+- [ ] Menú de tablero: mover tablero entre workspaces y permisos locales si el modelo de usuarios lo requiere.
 
-### Paridad de interacción y accesibilidad
+### Paridad de interacción, rendimiento y accesibilidad
 
-- [ ] Selección/hover/focus de filas y celdas más fiel al board de Monday.
-- [ ] Navegación por teclado dentro de todos los selectores emergentes.
-- [ ] Undo/redo local para ediciones recientes.
+- [ ] Selección/hover/focus de filas y celdas todavía puede acercarse más a los microcomportamientos de Monday.
 - [ ] Menú/ayuda de atajos equivalente a la experiencia de hoja de cálculo de Monday.
 - [ ] Virtualización/render parcial para tableros grandes, evitando rerender completo tras cada cambio.
+- [ ] Sincronización en tiempo real entre dos sesiones de New Monday cuando varias personas editen simultáneamente.
 
 ## Hallazgos oficiales que guían la siguiente fase
 
@@ -173,14 +181,14 @@ Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia 
 
 ## Estado de validación
 
-Último lote validado el 2026-08-25:
-- `npm test`: PASS en el último lote cerrado.
-- `npm audit --omit=dev --audit-level=high`: PASS en el último lote cerrado.
-- syntax checks: PASS en el último lote cerrado.
-- workflow general v2: PASS en el último lote cerrado.
+Lote validado el 2026-08-26:
+- `npm test`: PASS, incluyendo resolución de esquema de Subitems, protección de referencias GridFS y duplicación local de tableros.
+- `npm audit --omit=dev --audit-level=high`: PASS.
+- syntax checks: PASS.
+- workflow general v2: PASS.
+- workflow específico de paridad: PASS.
 - STAGING/recovery no se ejecutan salvo disparador explícito.
-
-El lote actual añade Recientes, menú de elemento, seguimiento de popovers y menú directo por pestaña; queda sujeto al CI automático final de la rama antes de revisión visual/publicación.
+- ninguna de estas validaciones ejecuta mutaciones en Monday.
 
 Producción no se modifica durante esta auditoría. PR #5 permanece Draft hasta revisión visual y autorización expresa de publicación.
 
@@ -191,4 +199,4 @@ Una diferencia se marca como cerrada solo cuando:
 2. no escribe nada en Monday;
 3. pasa tests/sintaxis/audit de dependencias;
 4. no degrada backup Excel ni recuperación;
-5. se valida visualmente antes de fusionar a `main`.
+5. el lote completo se valida visualmente antes de fusionar a `main`.
