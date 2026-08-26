@@ -1,0 +1,103 @@
+/* Phase 4 preparation: conservative responsive polish without hiding navigation. */
+
+@media(max-width:1100px){
+  .sidebar{width:230px}
+  .board-header{padding-left:20px;padding-right:20px;gap:14px}
+  .view-tabs{padding-left:20px;padding-right:20px}
+  .content{padding-left:20px;padding-right:20px}
+  .board-title-row h1{font-size:22px}
+}
+
+@media(max-width:900px){
+  .sidebar{width:210px}
+  .brand{padding-left:12px;padding-right:12px;font-size:15px}
+  .workspace-card.workspace-switcher{margin-left:6px;margin-right:6px;padding:7px}
+  .sidebar-search{margin-left:6px;margin-right:6px}
+  .sidebar-nav{padding-left:4px;padding-right:4px}
+  .sidebar-nav-item{padding-left:7px;padding-right:7px;font-size:12px}
+  .board-header{
+    min-height:auto;
+    padding:14px 16px 9px;
+    gap:10px;
+  }
+  .board-title-row h1{font-size:21px}
+  #board-subtitle{margin-left:29px}
+  .header-actions{gap:6px}
+  .view-tabs{padding-left:16px;padding-right:16px}
+  .view-tab{padding-left:9px;padding-right:9px;font-size:12px}
+  .content{padding:14px 16px 40px}
+  .group-section{margin-bottom:20px}
+  .modal-card{max-width:calc(100vw - 32px)}
+  .floating-menu,.status-menu{max-width:min(330px,calc(100vw - 16px))}
+}
+
+@media(max-width:720px){
+  .sidebar{width:176px}
+  .brand{min-height:48px;padding:10px 9px 7px;font-size:14px;gap:7px}
+  .brand-mark{width:26px;height:26px;border-radius:6px}
+  .workspace-card.workspace-switcher{min-height:42px;padding:5px 6px;margin-bottom:6px}
+  .workspace-icon{width:28px;height:28px}
+  .workspace-copy strong{font-size:11px}
+  .workspace-copy small{display:none!important}
+  .sidebar-search{min-height:31px;padding:4px 6px;margin-bottom:6px;font-size:11px}
+  .sidebar-label{padding:6px 9px 4px;font-size:9px}
+  .sidebar-nav-item{min-height:31px;padding:5px 6px;gap:6px;font-size:11.5px}
+  .sidebar-nav-item-icon{width:17px}
+  .sidebar-footer{min-height:42px;padding:7px 8px;font-size:10px}
+  .backup-tools{padding-left:4px!important;padding-right:4px!important}
+  .backup-tool-button{padding-left:5px!important;padding-right:5px!important;font-size:10.5px}
+
+  .board-header{padding:11px 12px 7px;align-items:flex-start}
+  .board-title-row{min-height:30px;gap:5px}
+  .board-title-row h1{font-size:19px;max-width:calc(100vw - 320px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .board-icon{font-size:18px}
+  .star-button{font-size:18px}
+  #board-subtitle{margin:2px 0 0 25px;font-size:10px;max-width:44vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .header-actions{align-self:flex-start}
+  .header-actions .button.primary{min-height:30px;padding:5px 8px;font-size:11px;white-space:nowrap}
+
+  .view-tabs{min-height:37px;padding-left:12px;padding-right:12px}
+  .view-tab{min-height:36px;padding:8px 7px 7px;font-size:11px}
+  .content{padding:11px 12px 34px}
+  .board-toolbar{min-height:34px}
+  .group-section{margin-bottom:18px}
+  .group-header{min-height:30px}
+  .group-title{font-size:13px}
+  .menu-button{padding-left:6px;padding-right:6px}
+  .modal-backdrop{padding:10px}
+  .modal-card{max-width:calc(100vw - 20px);padding:14px;gap:11px}
+  .modal-header h2{font-size:17px}
+  #toast-root{right:10px;bottom:10px;max-width:calc(100vw - 20px)}
+}
+
+@media(max-width:560px){
+  .sidebar{width:156px}
+  .brand{font-size:13px}
+  .brand-mark{width:24px;height:24px;font-size:11px}
+  .workspace-card.workspace-switcher{margin-left:4px;margin-right:4px}
+  .workspace-icon{width:26px;height:26px;font-size:10px}
+  .sidebar-search{margin-left:4px;margin-right:4px}
+  .sidebar-label{padding-left:7px;padding-right:7px}
+  .sidebar-nav{padding-left:3px;padding-right:3px}
+  .sidebar-nav-item{font-size:11px;padding-left:5px;padding-right:5px}
+  .sidebar-footer .avatar{width:25px;height:25px}
+
+  .board-header{padding-left:9px;padding-right:9px}
+  .board-title-row h1{font-size:17px;max-width:calc(100vw - 276px)}
+  #board-subtitle{display:none}
+  .header-actions .button.primary{font-size:10px;padding-left:6px;padding-right:6px}
+  .view-tabs{padding-left:9px;padding-right:9px}
+  .view-tab{padding-left:6px;padding-right:6px;font-size:10.5px}
+  .content{padding-left:9px;padding-right:9px}
+
+  .floating-menu,.status-menu{
+    max-width:calc(100vw - 12px);
+    max-height:72vh;
+  }
+  .modal-actions{flex-wrap:wrap}
+  .modal-actions .button{flex:1 1 auto}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .updates-drawer,.modal-card,.floating-menu,.status-menu,.gantt-bar,.files-gallery-card{scroll-behavior:auto!important}
+}
