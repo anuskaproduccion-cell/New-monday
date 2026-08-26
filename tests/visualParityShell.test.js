@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'v2-visual-parity.css'), 'utf8');
+const componentCss = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'v2-visual-parity-components.css'), 'utf8');
 const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
 
 const expectedTokens = [
@@ -25,11 +26,27 @@ expectedTokens.forEach(token => assert.ok(css.includes(token), `missing visual t
   '.modal-card{'
 ].forEach(selector => assert.ok(css.includes(selector), `missing visual parity selector ${selector}`));
 
+[
+  '.people-picker-menu,',
+  '.dropdown-picker-menu,',
+  '.dependency-picker-menu,',
+  '.world-clock-picker,',
+  '.relation-parity-picker,',
+  '.updates-drawer{',
+  '.update-card{'
+].forEach(selector => assert.ok(componentCss.includes(selector), `missing visual component selector ${selector}`));
+
 const visualLink = '<link rel="stylesheet" href="/css/v2-visual-parity.css">';
+const componentLink = '<link rel="stylesheet" href="/css/v2-visual-parity-components.css">';
 assert.ok(html.includes(visualLink), 'visual parity stylesheet must be loaded');
+assert.ok(html.includes(componentLink), 'visual component parity stylesheet must be loaded');
 assert.ok(
   html.indexOf(visualLink) > html.indexOf('<link rel="stylesheet" href="/css/v2-realtime.css">'),
   'visual parity stylesheet must load after functional/component styles so it can act as the final visual layer'
+);
+assert.ok(
+  html.indexOf(componentLink) > html.indexOf(visualLink),
+  'specialized visual component layer must load after foundation tokens and shell styles'
 );
 
 assert.ok(
