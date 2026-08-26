@@ -53,6 +53,8 @@ Estado: **BASE CERRADA EN CÓDIGO · QA VISUAL PENDIENTE**
 - [x] Añadir adaptación responsive conservadora a 1100/900/720/560 px sin esconder los tableros.
 - [x] Unificar tableros normales, Favoritos, Recientes, Fases y Carpetas: hover/active/focus/drop-target.
 - [x] Añadir `focus-visible` faltante a Recientes.
+- [x] Igualar el título inline de edición con la escala visible del header: 24/22/21/19/17 px según breakpoint.
+- [x] Igualar la descripción inline con la densidad del subtítulo, incluida la adaptación estrecha.
 - [ ] Revisar responsive real en navegador.
 
 ### Tabla principal
@@ -110,6 +112,7 @@ La revisión se guía por `docs/MONDAY_VISUAL_QA_CHECKLIST_2026-08-26.md`.
 - [x] Integrar toasts, connection error, loading y empty state.
 - [x] Endurecer `prefers-reduced-motion` en la capa final.
 - [x] Cubrir posicionamiento y ciclo de cierre exterior de popovers con regresión automática.
+- [x] Evitar el salto tipográfico al entrar en edición de título/descripción del tablero.
 - [ ] Auditoría visual pantalla por pantalla.
 - [ ] Restauración de foco y teclado visualmente coherentes en navegador real.
 - [ ] QA con dos sesiones realtime.
@@ -124,6 +127,8 @@ La revisión se guía por `docs/MONDAY_VISUAL_QA_CHECKLIST_2026-08-26.md`.
 - existan los tokens visuales esenciales;
 - se preserve `--nm-row-height:38px`;
 - estén presentes shell, tabla, menús y modales;
+- título y descripción inline mantengan la misma familia visual del header;
+- la escala del título inline siga 24/22/21/19/17 px en desktop y breakpoints;
 - estén presentes pickers, Updates, editor rico, menciones, adjuntos y save-state;
 - estén presentes Gantt, Files, lifecycle y Backup/Recovery;
 - existan los breakpoints 1100/900/720/560;
@@ -153,8 +158,8 @@ Ambas regresiones forman parte de `npm test`.
 
 ## Estado de paridad global
 
-La paridad funcional principal permanece cerrada en código. La **base de paridad visual / look & feel del alcance auditado está implementada en código**: shell/tabla, jerarquía lateral, pickers/Updates, editor rico/menciones/adjuntos, Gantt, Files, lifecycle, Backup/Recovery, responsive conservador, estados globales, drag/resize y comportamiento base de popovers.
+La paridad funcional principal permanece cerrada en código. La **base de paridad visual / look & feel del alcance auditado está implementada en código**: shell/tabla, jerarquía lateral, edición inline del header, pickers/Updates, editor rico/menciones/adjuntos, Gantt, Files, lifecycle, Backup/Recovery, responsive conservador, estados globales, drag/resize y comportamiento base de popovers.
 
-El último HEAD funcional de esta tanda, `02367aaa0e8f42fd3caff8402dd68ce79583d662`, pasó las dos puertas de CI el 2026-08-26.
+El último HEAD funcional de esta tanda, `542560f2a9e3c1e1750b0d4f15c8978168090adf`, pasó las dos puertas de CI el 2026-08-26.
 
 Esto todavía no equivale a “100% visual verificado”. El cierre depende de ejecutar la checklist comparativa en navegador real y corregir las diferencias que esa observación revele. Hasta entonces New Monday permanece visualmente en fase de QA y la PR #6 continúa Draft.
