@@ -20,11 +20,13 @@ jobs:
       - name: Syntax checks
         run: |
           node --check public/js/app-v2.js
+          node --check public/js/app-v2-concurrency-parity.js
           node --check public/js/app-v2-core-parity.js
           node --check public/js/app-v2-groups.js
           node --check public/js/app-v2-timeline.js
           node --check public/js/app-v2-gantt-parity.js
           node --check public/js/app-v2-gantt-color-parity.js
+          node --check public/js/app-v2-gantt-config-parity.js
           node --check public/js/app-v2-date-parity.js
           node --check public/js/app-v2-people.js
           node --check public/js/app-v2-people-settings-parity.js
@@ -64,12 +66,14 @@ jobs:
           node --check public/js/app-v2-menu-keyboard-parity.js
           node --check public/js/app-v2-undo-parity.js
           node --check models/Board.js
+          node --check models/Workspace.js
           node --check models/ItemUpdate.js
           node --check routes/boardOperations.js
           node --check routes/boards.js
           node --check routes/items.js
           node --check routes/views.js
           node --check routes/itemOrdering.js
+          node --check routes/workspaces.js
           node --check routes/updates.js
           node --check routes/files.js
           node --check routes/subitemSchema.js
