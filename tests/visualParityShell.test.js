@@ -22,12 +22,17 @@ expectedTokens.forEach(token => assert.ok(css.includes(token), `missing visual t
 [
   '.sidebar{',
   '.board-header{',
+  '.board-title-inline-input{',
+  '.board-description-inline-input{',
   '.view-tabs{',
   '.group-header{',
   '.board-table th,.crew-table th,.dynamic-table th{',
   '.floating-menu,.status-menu{',
   '.modal-card{'
 ].forEach(selector => assert.ok(css.includes(selector), `missing visual parity selector ${selector}`));
+
+assert.ok(css.includes('font-size:24px!important;'), 'inline board title must match the 24px desktop title scale');
+assert.ok(css.includes('.board-description-inline-input{\n  font-size:12px!important;'), 'inline board description must match the desktop subtitle density');
 
 [
   '.people-picker-menu,',
@@ -58,6 +63,11 @@ expectedTokens.forEach(token => assert.ok(css.includes(token), `missing visual t
   .forEach(query => assert.ok(responsiveCss.includes(query), `missing responsive breakpoint ${query}`));
 assert.ok(responsiveCss.includes('.sidebar{width:176px}'), '720px shell must compact sidebar without hiding navigation');
 assert.ok(responsiveCss.includes('.sidebar{width:156px}'), '560px shell must preserve a narrow but usable sidebar');
+assert.ok(responsiveCss.includes('.board-title-row h1,.board-title-inline-input{font-size:22px!important}'), '1100px inline title must match visible title scale');
+assert.ok(responsiveCss.includes('.board-title-row h1,.board-title-inline-input{font-size:21px!important}'), '900px inline title must match visible title scale');
+assert.ok(responsiveCss.includes('.board-title-inline-input{font-size:19px!important;'), '720px inline title must match visible title scale');
+assert.ok(responsiveCss.includes('.board-title-inline-input{font-size:17px!important;'), '560px inline title must match visible title scale');
+assert.ok(responsiveCss.includes('.board-description-inline-input{font-size:10px!important;'), 'narrow inline description must follow subtitle density');
 
 [
   '.button:focus-visible,',
