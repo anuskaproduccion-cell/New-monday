@@ -126,6 +126,17 @@
     return true;
   };
 
+  app.applyOrderedBoardStructure = function applyOrderedBoardStructure(boardId, field, orderedEntries = []) {
+    const sourceBoardId = String(boardId || '');
+    if (!sourceBoardId || !['groups', 'columns'].includes(field) || !Array.isArray(orderedEntries)) return false;
+    const board = this.boards.find(entry => String(entry._id) === sourceBoardId) || null;
+    if (board) board[field] = orderedEntries;
+    if (String(this.currentBoardId() || '') === sourceBoardId && this.currentBoard) {
+      this.currentBoard[field] = orderedEntries;
+    }
+    return Boolean(board || String(this.currentBoardId() || '') === sourceBoardId);
+  };
+
   app.reorderItemByDrop = async function reorderItemByDrop(draggedId, targetId) {
     const sourceBoardId = String(this.currentBoardId() || '');
     const dragged = this.findItem(draggedId);
@@ -197,29 +208,39 @@
   };
 
   app.reorderGroupByDrop = async function reorderGroupByDrop(draggedId, targetId) {
+    const sourceBoardId = String(this.currentBoardId() || '');
     const groups = this.effectiveGroups().slice();
     const from = groups.findIndex(group => group.id === draggedId);
     const to = groups.findIndex(group => group.id === targetId);
-    if (from < 0 || to < 0) return;
+    if (!sourceBoardId || from < 0 || to < 0) return;
     const [moved] = groups.splice(from, 1);
     groups.splice(to, 0, moved);
     try {
-      await this.api(`/api/boards/${this.currentBoardId()}/groups/reorder`, { method: 'POST', body: JSON.stringify({ groupIds: groups.map(group => group.id) }) });
-      await this.reloadBoardState();
+      const orderedGroups = await this.api(`/api/boards/${encodeURIComponent(sourceBoardId)}/groups/reorder`, {
+        method: 'POST',
+        body: JSON.stringify({ groupIds: groups.map(group => group.id) })
+      });
+      this.applyOrderedBoardStructure(sourceBoardId, 'groups', orderedGroups);
+      if (String(this.currentBoardId() || '') === sourceBoardId) this.renderCurrentView();
       this.showToast('Grupos reordenados');
     } catch (err) { this.showToast(err.message, true); }
   };
 
   app.reorderColumnByDrop = async function reorderColumnByDrop(draggedId, targetId) {
+    const sourceBoardId = String(this.currentBoardId() || '');
     const columns = (this.currentBoard.columns || []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     const from = columns.findIndex(column => column.id === draggedId);
     const to = columns.findIndex(column => column.id === targetId);
-    if (from < 0 || to < 0) return;
+    if (!sourceBoardId || from < 0 || to < 0) return;
     const [moved] = columns.splice(from, 1);
     columns.splice(to, 0, moved);
     try {
-      await this.api(`/api/boards/${this.currentBoardId()}/columns/reorder`, { method: 'POST', body: JSON.stringify({ columnIds: columns.map(column => column.id) }) });
-      await this.reloadBoardState();
+      const orderedColumns = await this.api(`/api/boards/${encodeURIComponent(sourceBoardId)}/columns/reorder`, {
+        method: 'POST',
+        body: JSON.stringify({ columnIds: columns.map(column => column.id) })
+      });
+      this.applyOrderedBoardStructure(sourceBoardId, 'columns', orderedColumns);
+      if (String(this.currentBoardId() || '') === sourceBoardId) this.renderCurrentView();
       this.showToast('Columnas reordenadas');
     } catch (err) { this.showToast(err.message, true); }
   };
