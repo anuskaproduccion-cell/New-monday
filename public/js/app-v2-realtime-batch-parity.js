@@ -1,6 +1,10 @@
 (() => {
   const baseNeedsFullShellRefresh = app.realtimeNeedsFullShellRefresh.bind(app);
   const baseItemRefreshMode = app.realtimeItemRefreshMode.bind(app);
+  const MAX_BATCH_LATENCY_MS = 1200;
+  const INTERACTION_RETRY_MS = 700;
+
+  app.realtimeBatchStartedAt = 0;
 
   app.realtimeNeedsFullShellRefresh = function realtimeNeedsFullShellRefreshWithItemBatch(change = {}) {
     if (change?.meta?.itemsOnly === true && !this.realtimeIsGlobalChange(change)) return false;
@@ -71,5 +75,37 @@
     }
 
     return incoming;
+  };
+
+  app.scheduleRealtimeRefresh = function scheduleRealtimeRefreshBounded(change = {}, delay = 350) {
+    if (!this.realtimeIsGlobalChange(change)) {
+      const boardId = String(change.board || '');
+      if (!boardId || boardId !== String(this.currentBoardId?.() || '')) return;
+    }
+
+    const now = Date.now();
+    if (!this.realtimePendingChange || !this.realtimeBatchStartedAt) this.realtimeBatchStartedAt = now;
+    this.realtimePendingChange = this.mergeRealtimeChanges(this.realtimePendingChange, change);
+
+    clearTimeout(this.realtimeRefreshTimer);
+    const elapsed = Math.max(0, now - this.realtimeBatchStartedAt);
+    const remaining = Math.max(0, MAX_BATCH_LATENCY_MS - elapsed);
+    const boundedDelay = Math.max(0, Math.min(Number(delay) || 0, remaining));
+
+    this.realtimeRefreshTimer = setTimeout(async () => {
+      if (this.realtimeInteractionInProgress()) {
+        clearTimeout(this.realtimeRefreshTimer);
+        this.realtimeRefreshTimer = setTimeout(() => {
+          const pending = this.realtimePendingChange || change;
+          this.scheduleRealtimeRefresh(pending, 0);
+        }, INTERACTION_RETRY_MS);
+        return;
+      }
+
+      const pending = this.realtimePendingChange || change;
+      this.realtimePendingChange = null;
+      this.realtimeBatchStartedAt = 0;
+      await this.applyRealtimeChange(pending);
+    }, boundedDelay);
   };
 })();
