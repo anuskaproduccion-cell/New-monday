@@ -44,7 +44,7 @@
       if (!menu.isConnected) return;
       document.addEventListener('pointerdown', event => {
         if (!menu.contains(event.target) && event.target !== anchor && !anchor.contains?.(event.target)) menu.remove();
-      }, { once: true, signal: controller.signal });
+      }, { signal: controller.signal });
     }, 0);
   };
 })();
