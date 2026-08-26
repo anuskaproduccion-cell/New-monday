@@ -5,7 +5,7 @@
   .board-header{padding-left:20px;padding-right:20px;gap:14px}
   .view-tabs{padding-left:20px;padding-right:20px}
   .content{padding-left:20px;padding-right:20px}
-  .board-title-row h1{font-size:22px}
+  .board-title-row h1,.board-title-inline-input{font-size:22px!important}
 }
 
 @media(max-width:900px){
@@ -20,7 +20,7 @@
     padding:14px 16px 9px;
     gap:10px;
   }
-  .board-title-row h1{font-size:21px}
+  .board-title-row h1,.board-title-inline-input{font-size:21px!important}
   #board-subtitle{margin-left:29px}
   .header-actions{gap:6px}
   .view-tabs{padding-left:16px;padding-right:16px}
@@ -50,9 +50,11 @@
   .board-header{padding:11px 12px 7px;align-items:flex-start}
   .board-title-row{min-height:30px;gap:5px}
   .board-title-row h1{font-size:19px;max-width:calc(100vw - 320px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .board-title-inline-input{font-size:19px!important;min-width:150px!important;max-width:calc(100vw - 320px)!important}
   .board-icon{font-size:18px}
   .star-button{font-size:18px}
   #board-subtitle{margin:2px 0 0 25px;font-size:10px;max-width:44vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .board-description-inline-input{font-size:10px!important;width:min(80vw,620px)!important;max-width:80vw!important}
   .header-actions{align-self:flex-start}
   .header-actions .button.primary{min-height:30px;padding:5px 8px;font-size:11px;white-space:nowrap}
 
@@ -84,7 +86,9 @@
 
   .board-header{padding-left:9px;padding-right:9px}
   .board-title-row h1{font-size:17px;max-width:calc(100vw - 276px)}
+  .board-title-inline-input{font-size:17px!important;min-width:120px!important;max-width:calc(100vw - 276px)!important}
   #board-subtitle{display:none}
+  .board-description-inline-input{font-size:10px!important;width:min(76vw,520px)!important;max-width:76vw!important}
   .header-actions .button.primary{font-size:10px;padding-left:6px;padding-right:6px}
   .view-tabs{padding-left:9px;padding-right:9px}
   .view-tab{padding-left:6px;padding-right:6px;font-size:10.5px}
