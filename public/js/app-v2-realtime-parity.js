@@ -129,6 +129,7 @@
         this.renderSidebar();
         this.renderHeader();
         this.renderViewTabs();
+        this.ensureRealtimeBadge();
       }
       this.renderCurrentView();
       this.realtimeLastRefreshAt = Date.now();
