@@ -48,6 +48,7 @@ jobs:
           node --check public/js/app-v2-relational-parity.js
           node --check public/js/app-v2-files-parity.js
           node --check public/js/app-v2-files-view-parity.js
+          node --check public/js/app-v2-file-preview-parity.js
           node --check public/js/app-v2-contact-parity.js
           node --check public/js/app-v2-view-parity.js
           node --check public/js/app-v2-view-menu-parity.js
