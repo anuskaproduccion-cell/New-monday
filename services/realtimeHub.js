@@ -1,4 +1,6 @@
-const clients = new Set();
+const { currentClientId, normalizeClientId } = require('./requestContext');
+
+const clients = new Map();
 let sequence = 0;
 
 function serializeEvent(event) {
@@ -18,8 +20,8 @@ function realtimeScope(event = {}) {
   return '';
 }
 
-function addRealtimeClient(res) {
-  clients.add(res);
+function addRealtimeClient(res, { clientId = '' } = {}) {
+  clients.set(res, { clientId: normalizeClientId(clientId) });
   return () => clients.delete(res);
 }
 
@@ -30,6 +32,7 @@ function publishRealtimeChange(event) {
   if (scope === 'board' && !event.board) return 0;
   if (scope === 'workspace' && !event.workspace) return 0;
 
+  const originClientId = normalizeClientId(event.originClientId || currentClientId());
   const frame = serializeEvent({
     scope,
     board: event.board ? String(event.board) : null,
@@ -42,7 +45,8 @@ function publishRealtimeChange(event) {
   });
 
   let delivered = 0;
-  for (const res of [...clients]) {
+  for (const [res, client] of [...clients.entries()]) {
+    if (originClientId && client?.clientId && client.clientId === originClientId) continue;
     try {
       res.write(frame);
       delivered += 1;
