@@ -15,8 +15,8 @@ Se considera alcanzada cuando, dentro de los flujos auditados, New Monday mantie
 - tipografía, contraste y pesos coherentes;
 - controles compactos, radios, bordes y sombras homogéneos;
 - estados hover, focus, selected, disabled, loading y save feedback;
-- menus, popovers, modales y paneles laterales con la misma familia visual;
-- Gantt, Updates, Files y estados vacíos integrados en el mismo sistema visual.
+- menús, popovers, modales y paneles laterales con la misma familia visual;
+- Gantt, Updates, Files, ciclo de vida y Backup/Recovery integrados en el mismo sistema visual.
 
 La paridad se refiere al alcance funcional observado/auditado para New Monday. No implica replicar módulos del ecosistema monday.com que nunca hayan formado parte del alcance del proyecto.
 
@@ -25,8 +25,8 @@ La paridad se refiere al alcance funcional observado/auditado para New Monday. N
 La paridad visual se aplica como capas finales del cascade, después de los CSS funcionales/componentes existentes:
 
 1. `v2-visual-parity.css`: tokens, shell, tabla, grupos, controles base, menús y modales.
-2. `v2-visual-parity-components.css`: pickers especializados y Updates.
-3. `v2-visual-parity-views.css`: Gantt, Files Gallery y Activity/Archive/Trash.
+2. `v2-visual-parity-components.css`: pickers especializados, Updates, editor rico, menciones, adjuntos, save-state y responsive de componentes.
+3. `v2-visual-parity-views.css`: Gantt, Files Gallery, Activity/Archive/Trash y Backup/Recovery.
 
 Esta estrategia evita refactors destructivos de decenas de hojas históricas y permite revisar/retirar cada capa de forma aislada.
 
@@ -46,7 +46,8 @@ Estado: **BASE CERRADA EN CÓDIGO · QA VISUAL PENDIENTE**
 - [x] Unificar sidebar, brand, workspace switcher, búsqueda y navegación.
 - [x] Unificar board header, título, subtítulo, búsqueda global y botones.
 - [x] Unificar tabs de vistas, active/hover y borde inferior.
-- [ ] Revisar responsive real en desktop estrecho y tablet.
+- [x] Añadir adaptación de componentes a desktop estrecho/tablet.
+- [ ] Revisar responsive real en navegador.
 
 ### Tabla principal
 
@@ -54,33 +55,40 @@ Estado: **BASE CERRADA EN CÓDIGO · QA VISUAL PENDIENTE**
 - [x] Mantener pinned columns/sticky behavior sin alterar posiciones funcionales.
 - [x] Unificar grupo, título/color, add-item row y celdas editables.
 - [x] Unificar Status/People/chips y estados de edición.
+- [x] Integrar visualmente `Guardando… / ✓ / !` con el resto de la tabla.
 - [ ] QA visual con subitems expandidos y virtualización activa.
 
 ## Fase 2 · Menús, popovers, modales y Updates
 
-Estado: **BASE CERRADA EN CÓDIGO · QA/MICROACABADO PENDIENTE**
+Estado: **BASE Y MICROACABADO DE CÓDIGO CERRADOS · QA REAL PENDIENTE**
 
 - [x] Base visual común para floating menus y status menus.
 - [x] Base visual común para modales y backdrop.
 - [x] Unificar People, Status, Date, Dropdown, Dependency, Relation/Mirror y World Clock: superficie, bordes, sombras, search, opciones, selección y acciones.
 - [x] Unificar panel lateral de Updates, tabs, composer, cards, replies y estados principales.
-- [ ] Revisión visual específica de menciones, adjuntos y editor enriquecido dentro de Updates.
-- [ ] Ajustar tooltips y feedback Guardando/✓/error tras QA real.
+- [x] Integrar toolbar de editor enriquecido, código, citas y enlaces.
+- [x] Integrar menciones y picker de menciones.
+- [x] Integrar adjuntos pendientes/publicados y botones de archivo.
+- [x] Añadir adaptación responsive de drawer/pickers/componentes.
+- [ ] Ajustar detalles adicionales únicamente si QA real detecta diferencias visibles.
 
 ## Fase 3 · Vistas especiales
 
-Estado: **BASE PRINCIPAL CERRADA EN CÓDIGO**
+Estado: **BASE PRINCIPAL CERRADA EN CÓDIGO · QA REAL PENDIENTE**
 
 - [x] Gantt: help/header, controles, left pane, grid temporal, grupos, barras, dependencias y Today.
 - [x] Files Gallery: header, stats, selector grid/list, cards/list y estados vacíos.
 - [x] Activity / Archive / Trash: headers, listas, cards, eventos y estados vacíos.
-- [ ] Backup/Recovery: formularios, alertas y tablas de preview.
+- [x] Backup/Recovery: herramientas de sidebar, modal, formularios, alertas, resumen, conflictos y confirmación.
 - [ ] QA visual real de Gantt con zoom, agrupación, milestones y dependencias largas.
 - [ ] QA visual real de Files con nombres largos, varios tipos y preview.
+- [ ] QA visual real de Backup/Recovery con conflictos y responsive.
 
 ## Fase 4 · Microinteracciones y QA comparativa
 
 Estado: **PENDIENTE · ES EL BLOQUE QUE DETERMINA EL CIERRE VISUAL**
+
+La revisión se guía por `docs/MONDAY_VISUAL_QA_CHECKLIST_2026-08-26.md`.
 
 - [ ] Auditoría visual pantalla por pantalla.
 - [ ] Hover/focus/pressed consistentes en todos los controles.
@@ -98,8 +106,9 @@ Estado: **PENDIENTE · ES EL BLOQUE QUE DETERMINA EL CIERRE VISUAL**
 - existan los tokens visuales esenciales;
 - se preserve `--nm-row-height:38px`;
 - estén presentes shell, tabla, menús y modales;
-- estén presentes pickers y Updates;
-- estén presentes Gantt, Files y lifecycle;
+- estén presentes pickers, Updates, editor rico, menciones, adjuntos y save-state;
+- estén presentes Gantt, Files, lifecycle y Backup/Recovery;
+- existan breakpoints visuales de componentes;
 - las tres capas visuales se carguen al final del cascade y en orden correcto.
 
 La regresión forma parte de `npm test`.
@@ -115,4 +124,6 @@ La regresión forma parte de `npm test`.
 
 ## Estado de paridad global
 
-La paridad funcional principal permanece cerrada en código. Las bases de **paridad visual / look & feel** para shell/tabla, pickers/Updates y vistas especiales ya existen en la PR #6. El cierre visual sigue dependiendo de QA comparativa en navegador real; hasta completar esa revisión New Monday no se marcará como visualmente cerrado.
+La paridad funcional principal permanece cerrada en código. La **base de paridad visual / look & feel del alcance auditado está ahora implementada en código**: shell/tabla, pickers/Updates, editor rico/menciones/adjuntos, Gantt, Files, lifecycle y Backup/Recovery.
+
+Esto todavía no equivale a “100% visual verificado”. El cierre depende de ejecutar la checklist comparativa en navegador real y corregir las diferencias que esa observación revele. Hasta entonces New Monday permanece visualmente en fase de QA y la PR #6 continúa Draft.
