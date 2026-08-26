@@ -7,6 +7,16 @@
   app.realtimeRelatedTimers = new Map();
   app.realtimeRelatedBatchStartedAt = new Map();
 
+  app.clearRelatedBoardRealtimeQueue = function clearRelatedBoardRealtimeQueue(sourceBoardId) {
+    const key = String(sourceBoardId || '');
+    if (!key) return;
+    const timer = this.realtimeRelatedTimers.get(key);
+    if (timer) clearTimeout(timer);
+    this.realtimeRelatedTimers.delete(key);
+    this.realtimeRelatedPendingChanges.delete(key);
+    this.realtimeRelatedBatchStartedAt.delete(key);
+  };
+
   app.realtimeBoardAffectsCurrentBoard = function realtimeBoardAffectsCurrentBoard(change = {}) {
     if (this.realtimeIsGlobalChange(change)) return true;
     const sourceBoardId = String(change.board || '');
@@ -90,7 +100,11 @@
 
   app.scheduleRelatedBoardRealtimeRefresh = function scheduleRelatedBoardRealtimeRefresh(change = {}, delay = 350) {
     const sourceBoardId = String(change.board || '');
-    if (!sourceBoardId || !this.realtimeBoardAffectsCurrentBoard(change)) return;
+    if (!sourceBoardId) return;
+    if (!this.realtimeBoardAffectsCurrentBoard(change)) {
+      this.clearRelatedBoardRealtimeQueue(sourceBoardId);
+      return;
+    }
 
     const now = Date.now();
     const pending = this.realtimeRelatedPendingChanges.get(sourceBoardId) || null;
@@ -106,6 +120,10 @@
     const boundedDelay = Math.max(0, Math.min(Number(delay) || 0, remaining));
 
     const timer = setTimeout(async () => {
+      if (!this.realtimeBoardAffectsCurrentBoard(this.realtimeRelatedPendingChanges.get(sourceBoardId) || change)) {
+        this.clearRelatedBoardRealtimeQueue(sourceBoardId);
+        return;
+      }
       if (this.realtimeInteractionInProgress() || this.realtimeRefreshing) {
         const retryTimer = setTimeout(() => {
           const retryChange = this.realtimeRelatedPendingChanges.get(sourceBoardId) || change;
@@ -116,9 +134,7 @@
       }
 
       const nextChange = this.realtimeRelatedPendingChanges.get(sourceBoardId) || change;
-      this.realtimeRelatedPendingChanges.delete(sourceBoardId);
-      this.realtimeRelatedBatchStartedAt.delete(sourceBoardId);
-      this.realtimeRelatedTimers.delete(sourceBoardId);
+      this.clearRelatedBoardRealtimeQueue(sourceBoardId);
       await this.refreshRelatedBoardFromRealtime(nextChange);
     }, boundedDelay);
 
@@ -137,5 +153,6 @@
     if (this.realtimeBoardAffectsCurrentBoard(change)) {
       return this.scheduleRelatedBoardRealtimeRefresh(change, delay);
     }
+    this.clearRelatedBoardRealtimeQueue(sourceBoardId);
   };
 })();
