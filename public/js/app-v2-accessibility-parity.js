@@ -202,7 +202,9 @@
     const renderedRows = [...content.querySelectorAll('.item-row[data-item-id]')];
     const activeRendered = Boolean(this.activeCell && renderedRows.some(row => {
       if (String(row.dataset.itemId || '') !== String(this.activeCell?.itemId || '')) return false;
-      return Boolean(row.querySelector(`.dynamic-cell[data-column-id="${CSS.escape(String(this.activeCell?.columnId || ''))}"]`));
+      return [...row.querySelectorAll('.dynamic-cell[data-column-id]')].some(cell =>
+        String(cell.dataset.columnId || '') === String(this.activeCell?.columnId || '')
+      );
     }));
 
     if ((!this.activeCell || !activeRendered) && renderedRows.length && columns.length) {
