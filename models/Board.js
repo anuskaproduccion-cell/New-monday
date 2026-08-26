@@ -31,6 +31,7 @@ const viewSchema = new mongoose.Schema({
 
 const boardSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
+  description: { type: String, default: '' },
   icon: { type: String, default: '📋' },
   order: { type: Number, default: 0 },
 
