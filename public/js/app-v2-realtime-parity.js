@@ -41,6 +41,12 @@
     return false;
   };
 
+  app.closeRealtimeMenusForRefresh = function closeRealtimeMenusForRefresh(fullShell = false) {
+    if (typeof this.closePositionedMenusForRoot !== 'function') return;
+    const root = fullShell ? document.body : document.getElementById('content');
+    if (root) this.closePositionedMenusForRoot(root);
+  };
+
   app.realtimeIsGlobalChange = function realtimeIsGlobalChange(change = {}) {
     const scope = String(change.scope || '').toLowerCase();
     return scope === 'global' || scope === 'workspace';
@@ -171,6 +177,7 @@
         this.currentWorkspace = previousWorkspace || this.workspaces[0] || null;
       }
 
+      this.closeRealtimeMenusForRefresh(true);
       this.renderWorkspaceSwitcher();
       this.renderSidebar();
       this.renderCrewDatalist?.();
@@ -234,6 +241,7 @@
 
       if (String(this.currentBoardId() || '') !== boardId) return;
       if (fullShellRefresh && board?.archived) {
+        this.closeRealtimeMenusForRefresh(true);
         await this.reloadAll();
         this.renderWorkspaceSwitcher();
         this.renderSidebar();
@@ -266,6 +274,7 @@
         this.items = this.items.filter(item => String(item._id) !== String(change.item));
       }
 
+      this.closeRealtimeMenusForRefresh(fullShellRefresh);
       if (fullShellRefresh) {
         this.renderWorkspaceSwitcher();
         this.renderSidebar();
