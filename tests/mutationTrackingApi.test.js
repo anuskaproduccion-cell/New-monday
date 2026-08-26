@@ -12,15 +12,27 @@ const vm = require('vm');
   let releaseMutation;
   let lastOptions = null;
   const gate = new Promise(resolve => { releaseMutation = resolve; });
+  const relatedChanges = [];
   const app = {
     localMutationsInFlight: 0,
+    currentBoard: { _id: 'board-1' },
     beginLocalMutation() { this.localMutationsInFlight += 1; },
     endLocalMutation() { this.localMutationsInFlight = Math.max(0, this.localMutationsInFlight - 1); },
+    currentBoardId() { return this.currentBoard?._id || ''; },
+    realtimeBoardAffectsCurrentBoard(change = {}) {
+      return String(change.board || '') === 'board-1' && this.currentBoardId() === 'board-2';
+    },
+    scheduleRelatedBoardRealtimeRefresh(change, delay) {
+      relatedChanges.push({ change, delay });
+    },
     async api(url, options = {}) {
       lastOptions = options;
       if (String(options.method || 'GET').toUpperCase() === 'PATCH') {
         await gate;
-        return { ok: true };
+        return {
+          item: { _id: 'item-1', board: 'board-1' },
+          cascaded: []
+        };
       }
       return { ok: true };
     }
@@ -39,6 +51,23 @@ const vm = require('vm');
   assert.strictEqual(app.realtimeOwnEchoSafeRequest('/api/item-ordering/a/subitems/reorder', 'POST'), false);
   assert.strictEqual(app.realtimeOwnEchoSafeRequest('/api/items/a', 'PATCH'), false);
   assert.strictEqual(app.realtimeOwnEchoSafeRequest('/api/items', 'GET'), false);
+
+  const cellChange = app.realtimeOwnEchoChangeForRequest(
+    '/api/items/item%201/columns/status%20x/conditional',
+    'PATCH',
+    { cascaded: [{ _id: 'a' }, { _id: 'b' }] }
+  );
+  assert.strictEqual(cellChange.item, 'item 1');
+  assert.strictEqual(cellChange.field, 'status x');
+  assert.strictEqual(cellChange.type, 'column_value_changed');
+  assert.strictEqual(cellChange.meta.cascadedCount, 2);
+  assert.strictEqual(app.realtimeOwnEchoChangeForRequest('/api/items', 'POST', { _id: 'new-1' }).type, 'item_created');
+  assert.strictEqual(app.realtimeOwnEchoChangeForRequest('/api/items/sub-1/move', 'POST', {}).type, 'item_moved');
+  assert.strictEqual(app.realtimeOwnEchoChangeForRequest('/api/items/sub-1/archive', 'POST', {}).type, 'item_archived');
+  assert.strictEqual(app.realtimeOwnEchoChangeForRequest('/api/items/sub-1/unarchive', 'POST', {}).type, 'item_unarchived');
+  assert.strictEqual(app.realtimeOwnEchoChangeForRequest('/api/items/sub-1/restore', 'POST', {}).type, 'item_restored');
+  assert.strictEqual(app.realtimeOwnEchoChangeForRequest('/api/items/sub-1', 'DELETE', { item: { _id: 'sub-1' } }).type, 'item_trashed');
+  assert.strictEqual(app.realtimeOwnEchoChangeForRequest('/api/item-ordering/reorder', 'POST', {}).type, 'item_ordering_changed');
 
   await app.api('/api/items');
   assert.strictEqual(app.localMutationsInFlight, 0, 'GET requests must not block realtime');
@@ -61,16 +90,30 @@ const vm = require('vm');
     app.clientSessionId,
     'concurrent-safe cell writes may suppress their own redundant SSE echo'
   );
+
+  app.currentBoard = { _id: 'board-2' };
   releaseMutation();
   await mutation;
   assert.strictEqual(app.localMutationsInFlight, 0, 'successful mutation must release the tracker');
+  assert.strictEqual(relatedChanges.length, 1, 'navigating to a board related to the mutation source must restore reconciliation after own-echo suppression');
+  assert.strictEqual(relatedChanges[0].delay, 0);
+  assert.strictEqual(relatedChanges[0].change.board, 'board-1');
+  assert.strictEqual(relatedChanges[0].change.item, 'item-1');
+  assert.strictEqual(relatedChanges[0].change.type, 'column_value_changed');
+  assert.strictEqual(relatedChanges[0].change.meta.cascadedCount, 0);
 
+  app.currentBoard = { _id: 'board-1' };
   await app.api('/api/item-ordering/reorder', { method: 'POST', body: '{}' });
   assert.strictEqual(
     lastOptions.headers['X-New-Monday-Client-Id'],
     app.clientSessionId,
     'proven-safe item ordering must carry the realtime suppression id'
   );
+  assert.strictEqual(relatedChanges.length, 1, 'staying on the source board must not schedule a relational refresh');
+
+  app.currentBoard = { _id: 'board-3' };
+  await app.api('/api/items/new-1/archive', { method: 'POST', body: '{}' });
+  assert.strictEqual(relatedChanges.length, 1, 'navigating to an unrelated board must not schedule extra work');
 
   let structuralOptions = null;
   const structuralApp = {
@@ -92,10 +135,15 @@ const vm = require('vm');
     'structural writes keep their realtime reconciliation echo until explicitly proven safe'
   );
 
+  let failedRelatedRefreshes = 0;
   const failingApp = {
     localMutationsInFlight: 0,
+    currentBoard: { _id: 'board-1' },
     beginLocalMutation() { this.localMutationsInFlight += 1; },
     endLocalMutation() { this.localMutationsInFlight = Math.max(0, this.localMutationsInFlight - 1); },
+    currentBoardId() { return this.currentBoard?._id || ''; },
+    realtimeBoardAffectsCurrentBoard() { return true; },
+    scheduleRelatedBoardRealtimeRefresh() { failedRelatedRefreshes += 1; },
     async api() { throw new Error('request failed'); }
   };
   vm.runInNewContext(source, {
@@ -103,8 +151,32 @@ const vm = require('vm');
     console,
     crypto: { randomUUID: () => 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee' }
   });
+  failingApp.currentBoard = { _id: 'board-2' };
   await assert.rejects(() => failingApp.api('/api/items/item-2', { method: 'DELETE' }), /request failed/);
   assert.strictEqual(failingApp.localMutationsInFlight, 0, 'failed mutation must release the tracker in finally');
+  assert.strictEqual(failedRelatedRefreshes, 0, 'failed writes must never schedule synthetic related-board reconciliation');
+
+  let warnings = 0;
+  const resilientApp = {
+    localMutationsInFlight: 0,
+    currentBoard: { _id: 'board-1' },
+    beginLocalMutation() { this.localMutationsInFlight += 1; },
+    endLocalMutation() { this.localMutationsInFlight = Math.max(0, this.localMutationsInFlight - 1); },
+    currentBoardId() { return this.currentBoard?._id || ''; },
+    realtimeBoardAffectsCurrentBoard() { return true; },
+    scheduleRelatedBoardRealtimeRefresh() { throw new Error('visual refresh failed'); },
+    async api() { return { item: { _id: 'item-9' }, cascaded: [] }; }
+  };
+  vm.runInNewContext(source, {
+    app: resilientApp,
+    console: { ...console, warn() { warnings += 1; } },
+    crypto: { randomUUID: () => '99999999-bbbb-4ccc-8ddd-eeeeeeeeeeee' }
+  });
+  const resilientWrite = resilientApp.api('/api/items/item-9/columns/status/conditional', { method: 'PATCH', body: '{}' });
+  resilientApp.currentBoard = { _id: 'board-2' };
+  const resilientResponse = await resilientWrite;
+  assert.strictEqual(resilientResponse.item._id, 'item-9', 'a successful data mutation must remain successful even if related-board repaint scheduling fails');
+  assert.strictEqual(warnings, 1, 'reconciliation failures should be isolated and observable');
 
   console.log('local API mutation tracking tests passed');
 })().catch(error => {
