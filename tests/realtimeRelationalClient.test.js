@@ -5,8 +5,16 @@ const vm = require('vm');
 
 (async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'app-v2-realtime-relational-parity.js'), 'utf8');
+  const indexHtml = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const relationalScript = '<script src="/js/app-v2-realtime-relational-parity.js"></script>';
+  const originScript = '<script src="/js/app-v2-realtime-origin-parity.js"></script>';
+  const batchScript = '<script src="/js/app-v2-realtime-batch-parity.js"></script>';
   let baseSchedules = 0;
   let relatedSchedules = 0;
+
+  assert.ok(indexHtml.includes(relationalScript), 'relational realtime bridge must be loaded by the client');
+  assert.ok(indexHtml.indexOf(relationalScript) > indexHtml.indexOf(originScript), 'relational bridge must load after own-origin filtering');
+  assert.ok(indexHtml.indexOf(relationalScript) > indexHtml.indexOf(batchScript), 'relational bridge must load after bounded batching so it can preserve that scheduler for current-board events');
 
   const app = {
     currentBoard: {
@@ -89,6 +97,25 @@ const vm = require('vm');
   assert.strictEqual(baseSchedules, 2, 'current-board and global events must keep the existing realtime scheduler');
   assert.strictEqual(relatedSchedules, 1, 'only a related external board should use the relational scheduler');
   app.scheduleRelatedBoardRealtimeRefresh = realRelatedScheduler;
+
+  const realRelatedRefresh = app.refreshRelatedBoardFromRealtime;
+  const scheduledRelatedChanges = [];
+  app.refreshRelatedBoardFromRealtime = async change => { scheduledRelatedChanges.push(change); };
+  app.scheduleRelatedBoardRealtimeRefresh({ board: 'board-2', item: 'remote-a', type: 'item_updated' }, 5);
+  app.scheduleRelatedBoardRealtimeRefresh({ board: 'board-3', item: 'remote-b', type: 'item_updated' }, 5);
+  await new Promise(resolve => setTimeout(resolve, 30));
+  assert.strictEqual(scheduledRelatedChanges.length, 2, 'different related boards must keep separate realtime queues');
+  assert.deepStrictEqual(new Set(scheduledRelatedChanges.map(change => change.board)), new Set(['board-2', 'board-3']));
+
+  scheduledRelatedChanges.length = 0;
+  app.scheduleRelatedBoardRealtimeRefresh({ board: 'board-2', item: 'remote-a', type: 'item_updated' }, 20);
+  app.scheduleRelatedBoardRealtimeRefresh({ board: 'board-2', item: 'remote-c', type: 'item_updated' }, 20);
+  await new Promise(resolve => setTimeout(resolve, 45));
+  assert.strictEqual(scheduledRelatedChanges.length, 1, 'two items from the same related board should coalesce into one source-board refresh');
+  assert.strictEqual(scheduledRelatedChanges[0].board, 'board-2');
+  assert.strictEqual(scheduledRelatedChanges[0].item, null);
+  assert.strictEqual(scheduledRelatedChanges[0].meta.itemsOnly, true);
+  app.refreshRelatedBoardFromRealtime = realRelatedRefresh;
 
   let renders = 0;
   let lastApiUrl = '';
