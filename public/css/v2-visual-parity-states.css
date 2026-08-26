@@ -120,6 +120,45 @@
   box-shadow:inset 0 1px 2px rgba(22,22,50,.22)!important;
 }
 
+/* Drag/drop and column-resize feedback. */
+.item-row[draggable="true"],
+.group-header-row[draggable="true"],
+.dynamic-col-head[draggable="true"]{cursor:grab!important}
+.item-row.is-drag-source,
+.sidebar-nav-item.is-dragging{
+  opacity:.52!important;
+  filter:saturate(.82);
+}
+.item-row.is-drop-target td{
+  box-shadow:inset 0 2px 0 var(--nm-primary)!important;
+}
+.group-section.is-group-drop-target{
+  outline:1px dashed var(--nm-primary)!important;
+  outline-offset:2px!important;
+  border-radius:var(--nm-radius-panel)!important;
+  background:linear-gradient(rgba(97,97,255,.025),rgba(97,97,255,.025));
+}
+.group-header-row.is-drop-target,
+.dynamic-col-head.is-drop-target{
+  box-shadow:inset 0 2px 0 var(--nm-primary)!important;
+}
+.dynamic-col-head:active,
+.group-header-row:active,
+.item-row:active{cursor:grabbing!important}
+.column-resize-handle::after{
+  width:1px!important;
+  background:transparent!important;
+}
+.dynamic-col-head:hover .column-resize-handle::after,
+.column-resize-handle.is-active::after{
+  background:var(--nm-primary)!important;
+}
+.column-resize-handle.is-active::after{width:2px!important}
+.is-resizing-column,.is-resizing-column *{
+  cursor:col-resize!important;
+  user-select:none!important;
+}
+
 /* Disabled state is consistent across native and aria-disabled controls. */
 button:disabled,
 .button:disabled,
