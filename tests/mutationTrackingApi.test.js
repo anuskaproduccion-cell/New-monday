@@ -34,6 +34,9 @@ const vm = require('vm');
 
   assert.strictEqual(app.clientSessionId, 'nm-11111111-2222-4333-8444-555555555555');
   assert.strictEqual(app.realtimeOwnEchoSafeRequest('/api/items/a/columns/status/conditional', 'PATCH'), true);
+  assert.strictEqual(app.realtimeOwnEchoSafeRequest('/api/item-ordering/reorder', 'POST'), true);
+  assert.strictEqual(app.realtimeOwnEchoSafeRequest('/api/item-ordering/reorder?source=drag', 'POST'), true);
+  assert.strictEqual(app.realtimeOwnEchoSafeRequest('/api/item-ordering/a/subitems/reorder', 'POST'), false);
   assert.strictEqual(app.realtimeOwnEchoSafeRequest('/api/items/a', 'PATCH'), false);
   assert.strictEqual(app.realtimeOwnEchoSafeRequest('/api/items', 'GET'), false);
 
@@ -61,6 +64,13 @@ const vm = require('vm');
   releaseMutation();
   await mutation;
   assert.strictEqual(app.localMutationsInFlight, 0, 'successful mutation must release the tracker');
+
+  await app.api('/api/item-ordering/reorder', { method: 'POST', body: '{}' });
+  assert.strictEqual(
+    lastOptions.headers['X-New-Monday-Client-Id'],
+    app.clientSessionId,
+    'proven-safe item ordering must carry the realtime suppression id'
+  );
 
   let structuralOptions = null;
   const structuralApp = {
