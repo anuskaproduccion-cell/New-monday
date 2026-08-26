@@ -81,15 +81,22 @@ virtualizationApp.virtualGroupItemIds.set('group-a', ['item-a', 'item-b', 'item-
 virtualizationApp.virtualItemExtraHeights.set('item-b', 80);
 assert.strictEqual(
   virtualizationApp.virtualEstimatedSpanHeight('group-a', 0, 3),
-  200,
-  'virtual spacers must include measured expanded content below parent rows'
+  194,
+  'virtual spacers must use the 38px CSS row fallback plus expanded content height'
 );
-assert.strictEqual(virtualizationApp.virtualIndexForOffset('group-a', 39), 0);
-assert.strictEqual(virtualizationApp.virtualIndexForOffset('group-a', 40), 1);
-assert.strictEqual(virtualizationApp.virtualIndexForOffset('group-a', 159), 1, 'expanded item height must occupy its full measured scroll interval');
-assert.strictEqual(virtualizationApp.virtualIndexForOffset('group-a', 160), 2);
+assert.strictEqual(virtualizationApp.virtualIndexForOffset('group-a', 37), 0);
+assert.strictEqual(virtualizationApp.virtualIndexForOffset('group-a', 38), 1);
+assert.strictEqual(virtualizationApp.virtualIndexForOffset('group-a', 155), 1, 'expanded item height must occupy its full estimated scroll interval');
+assert.strictEqual(virtualizationApp.virtualIndexForOffset('group-a', 156), 2);
+
+virtualizationApp.virtualItemBaseHeights.set('item-a', 42);
+assert.strictEqual(
+  virtualizationApp.virtualEstimatedSpanHeight('group-a', 0, 3),
+  198,
+  'measured parent-row height must override the CSS fallback when available'
+);
 const spacer = virtualizationApp.virtualSpacerRowHtml(3, 'group-a', 'top', [], 0, 3);
-assert.ok(spacer.includes('height:200px'), 'spacer HTML must use measured model height instead of count × fixed row height');
+assert.ok(spacer.includes('height:198px'), 'spacer HTML must use measured row and expanded-content heights');
 
 const accessibilitySource = fs.readFileSync(
   path.join(__dirname, '..', 'public', 'js', 'app-v2-accessibility-parity.js'),
