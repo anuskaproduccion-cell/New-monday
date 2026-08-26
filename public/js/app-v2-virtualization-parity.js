@@ -3,9 +3,9 @@
   const baseItemRowHtml = app.itemRowHtml.bind(app);
   const baseSelectBoard = app.selectBoard.bind(app);
 
-  const ROW_HEIGHT = 40;
+  const DEFAULT_ROW_HEIGHT = 38;
   const WINDOW_SIZE = 120;
-  const OVERSCAN_ROWS = 24;
+  const OVERSAN_ROWS = 24;
   const RANGE_STEP = 20;
   const ENABLE_THRESHOLD = 260;
 
@@ -13,6 +13,7 @@
   app.virtualBoardRanges = new Map();
   app.virtualItemPositions = new Map();
   app.virtualGroupItemIds = new Map();
+  app.virtualItemBaseHeights = new Map();
   app.virtualItemExtraHeights = new Map();
   app.virtualRenderFrame = null;
   app.virtualPreservedScrollTop = null;
@@ -26,6 +27,7 @@
       this.virtualBoardRanges.clear();
       this.virtualItemPositions.clear();
       this.virtualGroupItemIds.clear();
+      this.virtualItemBaseHeights.clear();
       this.virtualItemExtraHeights.clear();
       this.virtualBoardEnabled = false;
       this.virtualPreservedScrollTop = null;
@@ -58,9 +60,11 @@
     }
 
     const validItemIds = new Set(items.map(item => String(item._id)));
-    [...this.virtualItemExtraHeights.keys()].forEach(itemId => {
-      if (!validItemIds.has(String(itemId))) this.virtualItemExtraHeights.delete(itemId);
-    });
+    for (const cache of [this.virtualItemBaseHeights, this.virtualItemExtraHeights]) {
+      [...cache.keys()].forEach(itemId => {
+        if (!validItemIds.has(String(itemId))) cache.delete(itemId);
+      });
+    }
 
     const buckets = this.virtualGroupBuckets(items);
     const validGroups = new Set();
@@ -81,7 +85,10 @@
   };
 
   app.virtualEstimatedItemHeight = function virtualEstimatedItemHeight(itemId) {
-    return ROW_HEIGHT + Math.max(0, Number(this.virtualItemExtraHeights.get(String(itemId)) || 0));
+    const id = String(itemId);
+    const baseHeight = Math.max(1, Number(this.virtualItemBaseHeights.get(id) || DEFAULT_ROW_HEIGHT));
+    const extraHeight = Math.max(0, Number(this.virtualItemExtraHeights.get(id) || 0));
+    return baseHeight + extraHeight;
   };
 
   app.virtualEstimatedSpanHeight = function virtualEstimatedSpanHeight(groupId, start = 0, end = 0) {
@@ -109,7 +116,7 @@
     if (count <= 0) return '';
     const measured = Number.isInteger(startIndex) && Number.isInteger(endIndex)
       ? this.virtualEstimatedSpanHeight(groupId, startIndex, endIndex)
-      : count * ROW_HEIGHT;
+      : count * DEFAULT_ROW_HEIGHT;
     const height = Math.max(1, measured);
     return `<tr class="virtual-spacer-row" data-virtual-spacer="${edge}" data-virtual-group="${this.escapeAttr(groupId)}" aria-hidden="true"><td colspan="${columns.length + 3}"><div style="height:${height}px"></div></td></tr>`;
   };
@@ -146,7 +153,7 @@
 
     const localTop = Math.max(0, viewportTop - sectionTop - headerAllowance);
     const modelIndex = this.virtualIndexForOffset(groupId, localTop);
-    let start = Math.max(0, modelIndex - OVERSCAN_ROWS);
+    let start = Math.max(0, modelIndex - OVERSAN_ROWS);
     start = Math.floor(start / RANGE_STEP) * RANGE_STEP;
     start = Math.min(Math.max(0, current.total - WINDOW_SIZE), start);
     return { start, end: Math.min(current.total, start + WINDOW_SIZE), total: current.total };
@@ -205,6 +212,10 @@
     board.querySelectorAll('.item-row[data-item-id]').forEach(row => {
       const itemId = String(row.dataset.itemId || '');
       if (!itemId) return;
+      const rowRectHeight = Number(row.getBoundingClientRect?.().height || 0);
+      const rowHeight = rowRectHeight > 0 ? rowRectHeight : Number(row.offsetHeight || 0);
+      if (rowHeight > 0) this.virtualItemBaseHeights.set(itemId, rowHeight);
+
       let extraHeight = 0;
       let sibling = row.nextElementSibling;
       while (sibling) {
