@@ -61,6 +61,7 @@ jobs:
           node --check public/js/app-v2-save-state-parity.js
           node --check public/js/app-v2-popover-parity.js
           node --check public/js/app-v2-menu-keyboard-parity.js
+          node --check public/js/app-v2-undo-parity.js
           node --check models/Board.js
           node --check models/ItemUpdate.js
           node --check routes/boardOperations.js
