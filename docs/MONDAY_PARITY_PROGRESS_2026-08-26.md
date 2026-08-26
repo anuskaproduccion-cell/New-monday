@@ -2,7 +2,7 @@
 
 Regla absoluta: **Monday se consulta exclusivamente en modo lectura. Toda funcionalidad nueva se implementa solo en New Monday.**
 
-Este documento complementa `MONDAY_PARITY_AUDIT_2026-08-25.md` y registra el estado real de la rama `agent/monday-group-parity` después de cerrar los bloques de prioridad alta, varias diferencias de prioridad media y el bloque de interacción/rendimiento/colaboración.
+Este documento complementa `MONDAY_PARITY_AUDIT_2026-08-25.md`. La primera gran tanda de paridad se publicó desde la PR #5; el trabajo post-publicación continúa de forma aislada en la PR #6 (`agent/post-publish-qa`), sin modificar directamente `main`.
 
 ## Prioridad alta · cerrada en código
 
@@ -32,45 +32,56 @@ Este documento complementa `MONDAY_PARITY_AUDIT_2026-08-25.md` y registra el est
 - [x] **Edición por teclado**: Enter/F2 abre el editor, Escape devuelve el foco a la celda y Espacio selecciona/deselecciona la fila.
 - [x] **Ayuda de atajos**: panel de ayuda con `Ctrl/Cmd+/` o `?` y live region para anunciar cambios relevantes a tecnologías de asistencia.
 - [x] **Preferencia de movimiento reducido**: animaciones/transiciones prescindibles se desactivan cuando el sistema solicita `prefers-reduced-motion`.
+- [x] **Modales y menús**: foco inicial, trampa de foco en diálogos, Escape, restauración al ancla, roles `dialog/menu/menuitem` y navegación con flechas/Inicio/Fin.
+- [x] **Sidebar por teclado**: navegación jerárquica con flechas y alternativa `Shift+F10` al drag & drop para mover tableros entre carpetas.
 
 ## Rendimiento / colaboración · cerrada en código
 
-- [x] **Virtualización/render parcial**: a partir de 260 elementos, New Monday mantiene una ventana de hasta 120 filas por grupo, con spacers de altura equivalente y actualización por scroll. Los contadores y resúmenes siguen usando el conjunto completo de datos.
-- [x] **Navegación compatible con virtualización**: si una acción de teclado necesita una fila que no está en el DOM, la ventana se desplaza antes de restaurar el foco.
-- [x] **Sincronización entre sesiones**: stream SSE autenticado same-origin en `/api/realtime/stream`; los cambios registrados en actividad se emiten a sesiones abiertas del mismo servidor.
-- [x] **Refresco remoto seguro**: la sesión receptora recarga únicamente el tablero y sus items, conserva la vista activa y difiere el refresco mientras existe edición/drag/resize en curso.
-- [x] **Estado de conexión visible**: indicador En vivo / Reconectando / Sin conexión y revalidación al volver a una pestaña tras un periodo de inactividad.
-- [x] **Regresión del hub realtime**: prueba unitaria dedicada para suscripción, emisión, serialización SSE y desconexión.
+- [x] **Virtualización/render parcial**: a partir de 260 elementos, New Monday mantiene una ventana de hasta 120 filas por grupo, con spacers y actualización por scroll. Los contadores y resúmenes siguen usando el conjunto completo de datos.
+- [x] **Alturas reales**: el fallback coincide con la fila CSS de 38 px y las filas/subitems visibles alimentan alturas medidas para reducir deriva de scroll.
+- [x] **Índice de alturas**: acumulados por grupo y búsqueda binaria para localizar el offset visible, evitando recorrer linealmente miles de items en cada cálculo de ventana.
+- [x] **Navegación compatible con virtualización**: foco, rangos, copiar/pegar y `Shift + flechas` operan sobre el modelo completo aunque haya filas fuera del DOM.
+- [x] **Sincronización entre sesiones**: stream SSE autenticado same-origin en `/api/realtime/stream`, con scopes board/workspace/global.
+- [x] **Refresco remoto dirigido**: cambios simples pueden leer solo el item afectado; cascadas, bulk, ordering y cambios estructurales conservan refrescos más amplios por seguridad.
+- [x] **Coalescencia de ráfagas**: cambios rápidos no pierden items, conservan siempre el evento de mayor alcance y tienen un límite de latencia aproximado de 1,2 s salvo interacción local activa.
+- [x] **Coordinación con mutaciones locales**: realtime se aplaza mientras hay `POST/PATCH/PUT/DELETE` local en vuelo, eliminando carreras entre blur/guardado y refresco remoto.
+- [x] **Sin eco propio**: cada pestaña usa un identificador efímero para que su evento SSE no se reenvíe a la misma conexión que originó la mutación; las demás sesiones sí lo reciben. Ese identificador no es autenticación, no se persiste y no forma parte del payload de cambio.
+- [x] **Reconexión segura**: al restablecer SSE se hace una resincronización para recuperar cambios que pudieran haberse producido durante la desconexión.
+- [x] **Estado de conexión visible**: indicador En vivo / Reconectando / Sin conexión y revalidación al volver a una pestaña tras inactividad.
 
 ## Diferencias que quedan después de este lote
 
-### Producto / validación visual
+### Diferencias operativas reales pendientes
 
-- [ ] Validación visual integral en navegador real de todo el lote de paridad antes de sacar la PR de Draft.
-- [ ] Decidir si `critical path / baseline` de Gantt aporta valor operativo real.
+- [ ] **Validación visual integral en navegador real** de focus, teclado, virtualización, Gantt, popovers, Updates y dos sesiones simultáneas antes de sacar la PR #6 de Draft.
+- [ ] **Decisión de producto sobre `critical path / baseline` de Gantt**. No es un bloqueo técnico actual; solo se implementará si aporta valor operativo.
 
-### Escalabilidad futura
+### Diferencias condicionadas por decisiones futuras
 
-- [ ] Si en producción se supera de forma habitual una escala de varios miles de elementos por tablero, medir con datos reales y ajustar `ROW_HEIGHT`, `WINDOW_SIZE` y umbrales de virtualización.
-- [ ] Si Render se escala a varias instancias, sustituir el hub SSE en memoria por un bus compartido (por ejemplo Redis/pub-sub o MongoDB Change Streams) para propagar cambios entre procesos. En una instancia, el stream actual ya sincroniza sesiones abiertas.
+- [ ] **Permisos locales por usuario/rol** únicamente si New Monday adopta un modelo real de usuarios. El acceso actual está protegido por sesión/contraseña.
+- [ ] **Bus realtime compartido** únicamente si Render pasa a varias instancias. Con una sola instancia, el hub SSE actual cubre las sesiones conectadas a ese proceso.
+- [ ] **Tuning para varios miles de elementos** si esa escala aparece de forma habitual en datos reales; la virtualización actual ya dispone de ventanas, alturas medidas e índice binario para reducir el coste de scroll.
 
-### Modelo de usuarios / permisos
+## Lectura del estado de paridad
 
-- [ ] Permisos locales por usuario/rol solo si el proyecto adopta un modelo real de usuarios. El acceso protegido actual sigue siendo por sesión/contraseña de New Monday.
+Los bloques funcionales principales observados en Monday y priorizados para New Monday están cerrados en código: grupos, tabla/columnas, tipos de columna, subitems, vistas, Gantt, navegación/tablero, elementos, Updates, archivos, relaciones/mirror, teclado, accesibilidad, undo/redo, virtualización y colaboración realtime.
+
+Por tanto, lo pendiente ya no es otra gran fase de reconstrucción funcional. La mayor parte del trabajo restante es **QA visual/comportamental y decisiones opcionales de producto o escala**.
 
 ## Seguridad y publicación
 
-- Monday sigue en **solo lectura**; este lote no añade ninguna mutación a Monday.
+- Monday sigue en **solo lectura**; este trabajo no añade ninguna mutación a Monday.
 - No se ejecuta el seed destructivo durante esta auditoría.
-- No se escribe en MongoDB de producción durante el desarrollo de la rama.
-- La PR #5 continúa **Draft**.
-- No fusionar a `main` ni desplegar este lote hasta completar revisión visual integral y recibir autorización expresa.
+- No se escribe directamente en MongoDB de producción durante el desarrollo de la rama.
+- La PR #5 ya fue fusionada y constituye el corte publicado anterior.
+- La PR #6 continúa **Draft**, abierta y separada de producción.
+- No fusionar ni desplegar la PR #6 hasta completar el nuevo corte de revisión y recibir autorización expresa.
 
 ## Validación
 
-El lote funcional de accesibilidad, virtualización y realtime quedó verde en ambas puertas de CI el 2026-08-26:
+El HEAD funcional anterior a esta actualización documental quedó verde en ambas puertas de CI el 2026-08-26:
 
-1. `New Monday v2 validation`: `npm test`, audit de dependencias y syntax checks: **PASS**; STAGING/recovery/auditoría publicada no se ejecutaron porque no hubo disparador explícito. El workflow general comprueba ahora también la ruta SSE, el hub realtime y los tres módulos cliente nuevos.
-2. `New Monday group and timeline parity validation`: `npm test`, `npm audit --omit=dev --audit-level=high` y syntax checks específicos, incluidos accesibilidad, virtualización, realtime, ruta SSE y hub de eventos: **PASS**.
+1. `New Monday v2 validation`: `npm test`, audit de dependencias y syntax checks: **PASS**; STAGING/recovery/auditoría publicada no se ejecutaron sin disparador explícito.
+2. `New Monday group and timeline parity validation`: `npm test`, `npm audit --omit=dev --audit-level=high` y syntax checks específicos: **PASS**.
 
-Los commits posteriores que solo actualizan documentación o cobertura de CI vuelven a disparar las puertas, pero no alteran el comportamiento funcional ya validado.
+La cobertura incluye, entre otros, realtime cliente/servidor, coalescencia y latencia de ráfagas, contexto de origen, exclusión de eco propio, tracking de mutaciones, virtualización por alturas, teclado/rangos, modales, menús y sidebar.
