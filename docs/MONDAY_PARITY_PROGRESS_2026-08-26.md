@@ -2,7 +2,7 @@
 
 Regla absoluta: **Monday se consulta exclusivamente en modo lectura. Toda funcionalidad nueva se implementa solo en New Monday.**
 
-Este documento complementa `MONDAY_PARITY_AUDIT_2026-08-25.md` y registra el estado real de la rama `agent/monday-group-parity` después de cerrar los bloques de prioridad alta y varias diferencias de prioridad media.
+Este documento complementa `MONDAY_PARITY_AUDIT_2026-08-25.md` y registra el estado real de la rama `agent/monday-group-parity` después de cerrar los bloques de prioridad alta, varias diferencias de prioridad media y el bloque de interacción/rendimiento/colaboración.
 
 ## Prioridad alta · cerrada en código
 
@@ -24,17 +24,35 @@ Este documento complementa `MONDAY_PARITY_AUDIT_2026-08-25.md` y registra el est
 - [x] **Board Relation / Mirror multi-board**: una relación puede apuntar a varios tableros; el picker busca elementos entre todos ellos y Mirror permite configurar por tablero qué columna reflejar.
 - [x] **Mover tablero entre workspaces**: acción local desde el menú del tablero; conserva grupos, columnas, vistas, elementos y subitems y limpia la carpeta anterior al cambiar de workspace.
 
+## Interacción / accesibilidad · cerrada en código
+
+- [x] **Focus y selección tipo hoja de cálculo**: celdas con focus visible, fila seleccionada consistente y estados `aria-selected`/`aria-current`.
+- [x] **Grid accesible**: tablas declaradas como `grid`, celdas como `gridcell`, cabeceras de columna, labels contextuales y navegación con roving tabindex.
+- [x] **Navegación ampliada**: flechas, Inicio/Fin, Ctrl/Cmd+Inicio/Fin y Page Up/Page Down sobre el modelo de datos, no solo sobre las filas presentes en pantalla.
+- [x] **Edición por teclado**: Enter/F2 abre el editor, Escape devuelve el foco a la celda y Espacio selecciona/deselecciona la fila.
+- [x] **Ayuda de atajos**: panel de ayuda con `Ctrl/Cmd+/` o `?` y live region para anunciar cambios relevantes a tecnologías de asistencia.
+- [x] **Preferencia de movimiento reducido**: animaciones/transiciones prescindibles se desactivan cuando el sistema solicita `prefers-reduced-motion`.
+
+## Rendimiento / colaboración · cerrada en código
+
+- [x] **Virtualización/render parcial**: a partir de 260 elementos, New Monday mantiene una ventana de hasta 120 filas por grupo, con spacers de altura equivalente y actualización por scroll. Los contadores y resúmenes siguen usando el conjunto completo de datos.
+- [x] **Navegación compatible con virtualización**: si una acción de teclado necesita una fila que no está en el DOM, la ventana se desplaza antes de restaurar el foco.
+- [x] **Sincronización entre sesiones**: stream SSE autenticado same-origin en `/api/realtime/stream`; los cambios registrados en actividad se emiten a sesiones abiertas del mismo servidor.
+- [x] **Refresco remoto seguro**: la sesión receptora recarga únicamente el tablero y sus items, conserva la vista activa y difiere el refresco mientras existe edición/drag/resize en curso.
+- [x] **Estado de conexión visible**: indicador En vivo / Reconectando / Sin conexión y revalidación al volver a una pestaña tras un periodo de inactividad.
+- [x] **Regresión del hub realtime**: prueba unitaria dedicada para suscripción, emisión, serialización SSE y desconexión.
+
 ## Diferencias que quedan después de este lote
 
-### Interacción / accesibilidad
+### Producto / validación visual
 
-- [ ] Afinar todavía más selección, hover y focus de filas/celdas para acercarlos a los microcomportamientos de Monday.
-- [ ] Añadir un menú/ayuda de atajos equivalente a la experiencia de hoja de cálculo.
+- [ ] Validación visual integral en navegador real de todo el lote de paridad antes de sacar la PR de Draft.
+- [ ] Decidir si `critical path / baseline` de Gantt aporta valor operativo real.
 
-### Rendimiento / colaboración
+### Escalabilidad futura
 
-- [ ] Virtualización o render parcial para tableros grandes, evitando reconstrucciones completas del DOM tras cambios simples.
-- [ ] Sincronización en tiempo real entre dos sesiones de New Monday. El bloqueo optimista ya evita sobrescrituras silenciosas, pero aún no empuja cambios de una sesión a otra automáticamente.
+- [ ] Si en producción se supera de forma habitual una escala de varios miles de elementos por tablero, medir con datos reales y ajustar `ROW_HEIGHT`, `WINDOW_SIZE` y umbrales de virtualización.
+- [ ] Si Render se escala a varias instancias, sustituir el hub SSE en memoria por un bus compartido (por ejemplo Redis/pub-sub o MongoDB Change Streams) para propagar cambios entre procesos. En una instancia, el stream actual ya sincroniza sesiones abiertas.
 
 ### Modelo de usuarios / permisos
 
@@ -53,6 +71,6 @@ Este documento complementa `MONDAY_PARITY_AUDIT_2026-08-25.md` y registra el est
 La rama mantiene dos puertas de CI:
 
 1. `New Monday v2 validation`: tests, audit de dependencias y syntax checks; STAGING/recovery/auditoría publicada solo se ejecutan con disparadores explícitos.
-2. `New Monday group and timeline parity validation`: `npm test`, `npm audit --omit=dev --audit-level=high` y syntax checks de los módulos de paridad.
+2. `New Monday group and timeline parity validation`: `npm test`, `npm audit --omit=dev --audit-level=high` y syntax checks de los módulos de paridad, incluyendo accesibilidad, virtualización y realtime.
 
 Cada bloque nuevo se integra en esas validaciones antes de considerarse cerrado en código.
