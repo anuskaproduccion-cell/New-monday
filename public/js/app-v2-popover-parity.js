@@ -1,17 +1,34 @@
 (() => {
+  app.positionedMenus = app.positionedMenus instanceof Set ? app.positionedMenus : new Set();
+
+  app.closePositionedMenusForRoot = function closePositionedMenusForRoot(root = null) {
+    const menus = [...this.positionedMenus];
+    menus.forEach(menu => {
+      const anchor = menu?.__newMondayAnchor;
+      const anchorWillBeReplaced = !anchor?.isConnected || !root || root === document || root.contains?.(anchor);
+      if (anchorWillBeReplaced) menu?.remove?.();
+    });
+  };
+
   app.positionMenu = function positionMenuWithAnchorTracking(menu, anchor) {
     if (!menu || !anchor) return;
     menu.__newMondayAnchor = anchor;
     document.body.appendChild(menu);
+    this.positionedMenus.add(menu);
 
     const controller = new AbortController();
     const nativeRemove = menu.remove.bind(menu);
     let frame = null;
+    let removed = false;
 
     const cleanup = () => {
+      if (removed) return;
+      removed = true;
       controller.abort();
       if (frame) cancelAnimationFrame(frame);
       frame = null;
+      this.positionedMenus.delete(menu);
+      menu.__newMondayAnchor = null;
     };
     menu.remove = () => {
       cleanup();
