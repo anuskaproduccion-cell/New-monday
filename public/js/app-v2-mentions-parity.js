@@ -65,31 +65,49 @@
     });
   };
 
+  app.decorateMentionTextNode = function decorateMentionTextNode(node, regex) {
+    const text = node?.nodeValue || '';
+    regex.lastIndex = 0;
+    if (!regex.test(text)) {
+      regex.lastIndex = 0;
+      return;
+    }
+    regex.lastIndex = 0;
+    const fragment = document.createDocumentFragment();
+    let cursor = 0;
+    for (const match of text.matchAll(regex)) {
+      const index = match.index ?? 0;
+      if (index > cursor) fragment.append(document.createTextNode(text.slice(cursor, index)));
+      const span = document.createElement('span');
+      span.className = 'update-mention';
+      span.textContent = match[0];
+      span.title = 'Mención local de New Monday';
+      fragment.append(span);
+      cursor = index + match[0].length;
+    }
+    if (cursor < text.length) fragment.append(document.createTextNode(text.slice(cursor)));
+    node.replaceWith(fragment);
+  };
+
   app.decorateMentionText = function decorateMentionText(host) {
     const names = this.mentionCandidates().sort((a, b) => b.length - a.length);
     if (!host || !names.length) return;
     const escaped = names.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
     const regex = new RegExp(`@(${escaped.join('|')})(?=$|[\\s,.;:!?])`, 'gi');
-    host.querySelectorAll('.update-body,.update-reply p').forEach(node => {
-      if (node.dataset.mentionsDecorated === 'true') return;
-      const text = node.textContent || '';
-      if (!regex.test(text)) { regex.lastIndex = 0; return; }
-      regex.lastIndex = 0;
-      const fragment = document.createDocumentFragment();
-      let cursor = 0;
-      for (const match of text.matchAll(regex)) {
-        const index = match.index ?? 0;
-        if (index > cursor) fragment.append(document.createTextNode(text.slice(cursor, index)));
-        const span = document.createElement('span');
-        span.className = 'update-mention';
-        span.textContent = match[0];
-        span.title = 'Mención local de New Monday';
-        fragment.append(span);
-        cursor = index + match[0].length;
-      }
-      if (cursor < text.length) fragment.append(document.createTextNode(text.slice(cursor)));
-      node.replaceChildren(fragment);
-      node.dataset.mentionsDecorated = 'true';
+    host.querySelectorAll('.update-body,.update-reply p').forEach(container => {
+      container.querySelectorAll('.update-mention').forEach(span => span.replaceWith(document.createTextNode(span.textContent || '')));
+      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+        acceptNode: node => {
+          const parent = node.parentElement;
+          if (!parent || parent.closest('.update-mention')) return NodeFilter.FILTER_REJECT;
+          if (parent.closest('script,style')) return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      });
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      nodes.forEach(node => this.decorateMentionTextNode(node, regex));
+      container.dataset.mentionsDecorated = 'true';
     });
   };
 
@@ -97,7 +115,7 @@
     await baseRenderItemUpdates(itemId);
     const host = document.getElementById('updates-panel-body');
     if (!host) return;
-    host.querySelectorAll('.new-update-form textarea[name="body"],.reply-form input[name="body"]').forEach(input => this.bindMentionInput(input));
+    host.querySelectorAll('.new-update-form textarea[name="body"],.reply-form input[name="body"],.reply-form textarea[name="body"]').forEach(input => this.bindMentionInput(input));
     this.decorateMentionText(host);
   };
 })();
