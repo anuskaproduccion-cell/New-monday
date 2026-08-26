@@ -19,6 +19,7 @@ const vm = require('vm');
 
   assert.strictEqual(typeof app.realtimeIsGlobalChange, 'function');
   assert.strictEqual(typeof app.realtimeNeedsFullShellRefresh, 'function');
+  assert.strictEqual(typeof app.realtimeItemRefreshMode, 'function');
   assert.strictEqual(typeof app.mergeRealtimeChanges, 'function');
   assert.strictEqual(typeof app.realtimeReadySyncChange, 'function');
   assert.strictEqual(typeof app.refreshGlobalStateFromRealtime, 'function');
@@ -30,6 +31,15 @@ const vm = require('vm');
   assert.strictEqual(app.realtimeNeedsFullShellRefresh({ board: 'board-1', type: 'group_items_updated' }), true);
   assert.strictEqual(app.realtimeNeedsFullShellRefresh({ board: 'board-1', type: 'visibility_refresh' }), true);
   assert.strictEqual(app.realtimeNeedsFullShellRefresh({ scope: 'workspace', workspace: 'workspace-1' }), true);
+
+  assert.strictEqual(app.realtimeItemRefreshMode({ board: 'board-1', item: 'item-1', type: 'column_value_changed', meta: { cascadedCount: 0 } }), 'single');
+  assert.strictEqual(app.realtimeItemRefreshMode({ board: 'board-1', item: 'item-1', type: 'column_value_changed', meta: { cascadedCount: 2 } }), 'board');
+  assert.strictEqual(app.realtimeItemRefreshMode({ board: 'board-1', item: 'item-1', type: 'item_updated' }), 'single');
+  assert.strictEqual(app.realtimeItemRefreshMode({ board: 'board-1', item: 'item-1', type: 'item_moved' }), 'single');
+  assert.strictEqual(app.realtimeItemRefreshMode({ board: 'board-1', item: 'item-1', type: 'item_archived' }), 'remove');
+  assert.strictEqual(app.realtimeItemRefreshMode({ board: 'board-1', item: 'item-1', type: 'item_trashed' }), 'remove');
+  assert.strictEqual(app.realtimeItemRefreshMode({ board: 'board-1', item: 'item-1', type: 'item_duplicated' }), 'board');
+  assert.strictEqual(app.realtimeItemRefreshMode({ board: 'board-1', item: 'item-1', type: 'item_bulk_status_changed' }), 'board');
 
   const fullThenItem = app.mergeRealtimeChanges(
     { board: 'board-1', type: 'board_updated', message: 'Tablero actualizado' },
@@ -89,6 +99,7 @@ const vm = require('vm');
 
   let badgeRestores = 0;
   let currentViewRenders = 0;
+  let lastApiUrl = '';
   Object.assign(app, {
     currentBoard: { _id: 'board-1', archived: false },
     boards: [{ _id: 'board-1', archived: false }],
@@ -98,9 +109,12 @@ const vm = require('vm');
     realtimeRefreshing: false,
     realtimePendingChange: null,
     currentBoardId: () => 'board-1',
-    api: async url => url.startsWith('/api/boards/')
-      ? { _id: 'board-1', archived: false }
-      : [],
+    api: async url => {
+      lastApiUrl = url;
+      if (url.startsWith('/api/boards/')) return { _id: 'board-1', archived: false };
+      if (url === '/api/items/item-1') return { _id: 'item-1', board: 'board-1', name: 'Remoto' };
+      return [];
+    },
     boardBelongsToWorkspace: () => false,
     renderWorkspaceSwitcher() {},
     renderSidebar() {},
@@ -117,9 +131,24 @@ const vm = require('vm');
 
   badgeRestores = 0;
   currentViewRenders = 0;
-  await app.refreshCurrentBoardFromRealtime({ board: 'board-1', item: 'item-1', type: 'column_value_changed' });
+  lastApiUrl = '';
+  await app.refreshCurrentBoardFromRealtime({ board: 'board-1', item: 'item-1', type: 'column_value_changed', meta: { cascadedCount: 0 } });
+  assert.strictEqual(lastApiUrl, '/api/items/item-1', 'simple cell changes must fetch only the changed item');
+  assert.strictEqual(app.items.length, 1);
+  assert.strictEqual(app.items[0].name, 'Remoto');
   assert.strictEqual(badgeRestores, 0, 'item refresh must not rebuild or restore the header badge');
   assert.strictEqual(currentViewRenders, 1);
+
+  lastApiUrl = '';
+  await app.refreshCurrentBoardFromRealtime({ board: 'board-1', item: 'item-1', type: 'column_value_changed', meta: { cascadedCount: 2 } });
+  assert.strictEqual(lastApiUrl, '/api/items/board/board-1?includeSubitems=true', 'dependency cascades must still refresh the board item set');
+
+  app.items = [{ _id: 'item-1', board: 'board-1' }, { _id: 'item-2', board: 'board-1' }];
+  lastApiUrl = '';
+  await app.refreshCurrentBoardFromRealtime({ board: 'board-1', item: 'item-1', type: 'item_archived' });
+  assert.strictEqual(lastApiUrl, '', 'archive event should not need an extra item request');
+  assert.strictEqual(app.items.some(item => item._id === 'item-1'), false);
+  assert.strictEqual(app.items.some(item => item._id === 'item-2'), true);
 
   let globalReloads = 0;
   let globalSidebarRenders = 0;
