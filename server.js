@@ -14,6 +14,7 @@ const {
   createLoginAttemptLimiter,
   securityHeadersMiddleware
 } = require('./services/accessControl');
+const { requestContextMiddleware } = require('./services/requestContext');
 const { router: cutoverRouter } = require('./routes/cutover');
 
 const app = express();
@@ -103,6 +104,7 @@ app.post('/auth/logout', (req, res) => {
 });
 
 app.use(accessMiddleware(process.env));
+app.use(requestContextMiddleware);
 app.use(express.static(path.join(__dirname, 'public')));
 
 const workspacesRouter = require('./routes/workspaces');
