@@ -2,9 +2,11 @@
   const conflictMessage = 'La celda cambió en otra sesión. Recargué los datos para evitar sobrescribir cambios.';
 
   app.localMutationsInFlight = Number(app.localMutationsInFlight || 0);
+  app.localMutationEpoch = Number(app.localMutationEpoch || 0);
 
   app.beginLocalMutation = function beginLocalMutation() {
     this.localMutationsInFlight = Number(this.localMutationsInFlight || 0) + 1;
+    this.localMutationEpoch = Number(this.localMutationEpoch || 0) + 1;
   };
 
   app.endLocalMutation = function endLocalMutation() {
@@ -13,6 +15,10 @@
 
   app.hasLocalMutationInFlight = function hasLocalMutationInFlight() {
     return Number(this.localMutationsInFlight || 0) > 0;
+  };
+
+  app.localMutationVersion = function localMutationVersion() {
+    return Number(this.localMutationEpoch || 0);
   };
 
   app.updateColumnValue = async function updateColumnValueConcurrentSafe(id, columnId, value) {
