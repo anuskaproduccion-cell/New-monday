@@ -14,6 +14,8 @@
   app.virtualItemPositions = new Map();
   app.virtualRenderFrame = null;
   app.virtualPreservedScrollTop = null;
+  app.virtualScrollHost = null;
+  app.virtualScrollHandler = null;
 
   app.selectBoard = async function selectBoardWithVirtualReset(board) {
     const previous = String(this.currentBoardId() || '');
@@ -125,14 +127,54 @@
     this.renderBoard();
   };
 
+  app.unbindVirtualBoardScroll = function unbindVirtualBoardScroll() {
+    if (this.virtualScrollHost && this.virtualScrollHandler) {
+      this.virtualScrollHost.removeEventListener('scroll', this.virtualScrollHandler);
+    }
+    this.virtualScrollHost = null;
+    this.virtualScrollHandler = null;
+    if (this.virtualRenderFrame && typeof cancelAnimationFrame === 'function') {
+      cancelAnimationFrame(this.virtualRenderFrame);
+      this.virtualRenderFrame = null;
+    }
+  };
+
+  app.ensureVirtualBoardScrollListener = function ensureVirtualBoardScrollListener(scroller) {
+    if (!scroller) return;
+    if (this.virtualScrollHost === scroller && this.virtualScrollHandler) return;
+    this.unbindVirtualBoardScroll();
+    this.virtualScrollHost = scroller;
+    this.virtualScrollHandler = () => {
+      if (this.virtualRenderFrame) return;
+      this.virtualRenderFrame = requestAnimationFrame(() => {
+        this.virtualRenderFrame = null;
+        this.updateVirtualRangesForScroll(scroller);
+      });
+    };
+    scroller.addEventListener('scroll', this.virtualScrollHandler, { passive: true });
+  };
+
+  app.virtualRowCountForGroup = function virtualRowCountForGroup(groupId) {
+    const range = this.virtualBoardRanges.get(String(groupId));
+    return range ? Number(range.total || 0) + 1 : null;
+  };
+
   app.bindVirtualBoardScroll = function bindVirtualBoardScroll() {
     const scroller = document.getElementById('content');
     const board = scroller?.querySelector('.board-scroll');
-    if (!scroller || !board || !this.virtualBoardEnabled) return;
+    if (!scroller || !board || !this.virtualBoardEnabled) {
+      this.unbindVirtualBoardScroll();
+      return;
+    }
     board.dataset.virtualized = 'true';
     const total = this.filteredBoardItems().length;
     const rendered = board.querySelectorAll('.item-row[data-item-id]').length;
-    board.querySelectorAll('table.board-table').forEach(table => table.setAttribute('aria-rowcount', String(total + 1)));
+    board.querySelectorAll('.group-section[data-group-id]').forEach(section => {
+      const groupId = String(section.dataset.groupId || '');
+      const table = section.querySelector('table.board-table');
+      const rowCount = this.virtualRowCountForGroup(groupId);
+      if (table && rowCount) table.setAttribute('aria-rowcount', String(rowCount));
+    });
 
     const toolbar = scroller.querySelector('.board-toolbar');
     if (toolbar && !toolbar.querySelector('.virtualization-badge')) {
@@ -143,13 +185,7 @@
       toolbar.appendChild(badge);
     }
 
-    scroller.addEventListener('scroll', () => {
-      if (this.virtualRenderFrame) return;
-      this.virtualRenderFrame = requestAnimationFrame(() => {
-        this.virtualRenderFrame = null;
-        this.updateVirtualRangesForScroll(scroller);
-      });
-    }, { passive: true });
+    this.ensureVirtualBoardScrollListener(scroller);
   };
 
   app.ensureVirtualItemRendered = function ensureVirtualItemRendered(itemId) {
