@@ -34,6 +34,7 @@
   };
 
   app.realtimeInteractionInProgress = function realtimeInteractionInProgress() {
+    if (typeof this.hasLocalMutationInFlight === 'function' && this.hasLocalMutationInFlight()) return true;
     const active = document.activeElement;
     if (active?.matches?.('input,textarea,select,[contenteditable="true"]')) return true;
     if (document.querySelector('.is-dragging,.is-resizing,[data-dragging="true"],.column-resizing')) return true;
