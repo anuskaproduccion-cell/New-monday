@@ -40,12 +40,35 @@
     return false;
   };
 
+  app.realtimeIsGlobalChange = function realtimeIsGlobalChange(change = {}) {
+    const scope = String(change.scope || '').toLowerCase();
+    return scope === 'global' || scope === 'workspace';
+  };
+
   app.realtimeNeedsFullShellRefresh = function realtimeNeedsFullShellRefresh(change = {}) {
-    return !change.item;
+    return this.realtimeIsGlobalChange(change) || !change.item;
   };
 
   app.mergeRealtimeChanges = function mergeRealtimeChanges(current = null, incoming = {}) {
     if (!current) return incoming;
+
+    const currentGlobal = this.realtimeIsGlobalChange(current);
+    const incomingGlobal = this.realtimeIsGlobalChange(incoming);
+    if (currentGlobal || incomingGlobal) {
+      const broadChange = incomingGlobal ? incoming : current;
+      return {
+        ...incoming,
+        scope: broadChange.scope || 'global',
+        board: null,
+        workspace: broadChange.workspace || incoming.workspace || current.workspace || null,
+        item: null,
+        type: broadChange.type || incoming.type || current.type || 'change',
+        field: broadChange.field || '',
+        message: broadChange.message || incoming.message || current.message || '',
+        meta: broadChange.meta || incoming.meta || current.meta || {}
+      };
+    }
+
     const preserveFullRefresh = this.realtimeNeedsFullShellRefresh(current) || this.realtimeNeedsFullShellRefresh(incoming);
     if (!preserveFullRefresh) return incoming;
     const fullChange = this.realtimeNeedsFullShellRefresh(incoming) ? incoming : current;
@@ -64,18 +87,27 @@
     const wasReady = this.realtimeEverReady;
     this.realtimeEverReady = true;
     if (!wasReady) return null;
-    const boardId = String(this.currentBoardId?.() || '');
-    if (!boardId) return null;
     return {
-      board: boardId,
+      scope: 'global',
+      board: null,
+      item: null,
       type: 'realtime_reconnected',
       message: 'Conexión en vivo restablecida'
     };
   };
 
-  app.scheduleRealtimeRefresh = function scheduleRealtimeRefresh(change = {}, delay = 350) {
+  app.realtimePendingChangeStillRelevant = function realtimePendingChangeStillRelevant(change = {}) {
+    if (this.realtimeIsGlobalChange(change)) return true;
     const boardId = String(change.board || '');
-    if (!boardId || boardId !== String(this.currentBoardId() || '')) return;
+    return Boolean(boardId && boardId === String(this.currentBoardId?.() || ''));
+  };
+
+  app.scheduleRealtimeRefresh = function scheduleRealtimeRefresh(change = {}, delay = 350) {
+    if (!this.realtimeIsGlobalChange(change)) {
+      const boardId = String(change.board || '');
+      if (!boardId || boardId !== String(this.currentBoardId?.() || '')) return;
+    }
+
     this.realtimePendingChange = this.mergeRealtimeChanges(this.realtimePendingChange, change);
     clearTimeout(this.realtimeRefreshTimer);
     this.realtimeRefreshTimer = setTimeout(async () => {
@@ -85,8 +117,78 @@
       }
       const pending = this.realtimePendingChange || change;
       this.realtimePendingChange = null;
-      await this.refreshCurrentBoardFromRealtime(pending);
+      await this.applyRealtimeChange(pending);
     }, delay);
+  };
+
+  app.applyRealtimeChange = async function applyRealtimeChange(change = {}) {
+    if (this.realtimeIsGlobalChange(change)) return this.refreshGlobalStateFromRealtime(change);
+    return this.refreshCurrentBoardFromRealtime(change);
+  };
+
+  app.refreshGlobalStateFromRealtime = async function refreshGlobalStateFromRealtime(change = {}) {
+    if (this.realtimeRefreshing) {
+      this.realtimePendingChange = this.mergeRealtimeChanges(this.realtimePendingChange, change);
+      return;
+    }
+
+    this.realtimeRefreshing = true;
+    try {
+      const previousBoardId = String(this.currentBoardId?.() || '');
+      const previousWorkspaceKey = String(this.workspaceKey?.(this.currentWorkspace) || '');
+
+      await this.reloadAll();
+
+      const nextBoard = previousBoardId
+        ? this.boards.find(board => String(board._id) === previousBoardId && !board.archived)
+        : null;
+      const previousWorkspace = previousWorkspaceKey
+        ? this.workspaces.find(workspace => String(this.workspaceKey(workspace)) === previousWorkspaceKey)
+        : null;
+
+      if (nextBoard) {
+        this.currentBoard = nextBoard;
+        this.currentWorkspace = this.workspaces.find(workspace => this.boardBelongsToWorkspace(nextBoard, workspace))
+          || previousWorkspace
+          || this.workspaces[0]
+          || null;
+      } else {
+        this.currentBoard = null;
+        this.currentWorkspace = previousWorkspace || this.workspaces[0] || null;
+      }
+
+      this.renderWorkspaceSwitcher();
+      this.renderSidebar();
+      this.renderCrewDatalist?.();
+
+      if (this.currentBoard) {
+        this.renderHeader();
+        this.renderViewTabs();
+        this.ensureRealtimeBadge();
+        this.renderCurrentView();
+      } else {
+        const next = this.visibleBoards()[0];
+        if (next) await this.selectBoard(next);
+        else this.renderEmptyState('No hay tableros visibles después del cambio remoto.');
+        this.ensureRealtimeBadge();
+      }
+
+      this.realtimeLastRefreshAt = Date.now();
+      if (typeof this.announceA11y === 'function') {
+        const message = change.message ? `Cambio remoto: ${change.message}` : 'La estructura de New Monday se actualizó desde otra sesión';
+        this.announceA11y(message);
+      }
+    } catch (error) {
+      console.warn('Global realtime refresh failed:', error.message);
+      this.setRealtimeState(navigator.onLine === false ? 'offline' : 'connecting', navigator.onLine === false ? 'Sin conexión' : 'Reconectando…');
+    } finally {
+      this.realtimeRefreshing = false;
+      if (this.realtimePendingChange && this.realtimePendingChangeStillRelevant(this.realtimePendingChange)) {
+        const pending = this.realtimePendingChange;
+        this.realtimePendingChange = null;
+        this.scheduleRealtimeRefresh(pending, 250);
+      }
+    }
   };
 
   app.refreshCurrentBoardFromRealtime = async function refreshCurrentBoardFromRealtime(change = {}) {
@@ -157,7 +259,7 @@
       this.setRealtimeState(navigator.onLine === false ? 'offline' : 'connecting', navigator.onLine === false ? 'Sin conexión' : 'Reconectando…');
     } finally {
       this.realtimeRefreshing = false;
-      if (this.realtimePendingChange && String(this.realtimePendingChange.board || '') === String(this.currentBoardId() || '')) {
+      if (this.realtimePendingChange && this.realtimePendingChangeStillRelevant(this.realtimePendingChange)) {
         const pending = this.realtimePendingChange;
         this.realtimePendingChange = null;
         this.scheduleRealtimeRefresh(pending, 250);
@@ -183,7 +285,7 @@
     source.addEventListener('change', event => {
       let change = null;
       try { change = JSON.parse(event.data || '{}'); } catch { return; }
-      if (!change?.board) return;
+      if (!change || (!this.realtimeIsGlobalChange(change) && !change.board)) return;
       this.setRealtimeState('live', 'En vivo');
       this.scheduleRealtimeRefresh(change);
     });
@@ -204,7 +306,7 @@
       if (document.visibilityState !== 'visible' || !this.currentBoardId()) return;
       if (!this.realtimeSource || this.realtimeSource.readyState === EventSource.CLOSED) this.connectRealtime();
       if (Date.now() - this.realtimeLastRefreshAt > 15000 && !this.realtimeInteractionInProgress()) {
-        this.refreshCurrentBoardFromRealtime({ board: this.currentBoardId(), type: 'visibility_refresh' });
+        this.scheduleRealtimeRefresh({ board: this.currentBoardId(), type: 'visibility_refresh' }, 50);
       }
     });
   };
