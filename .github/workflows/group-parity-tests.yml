@@ -35,6 +35,7 @@ jobs:
           node --check public/js/app-v2-dropdown-parity.js
           node --check public/js/app-v2-inline-item.js
           node --check public/js/app-v2-group-summary.js
+          node --check public/js/app-v2-collapsed-group-parity.js
           node --check public/js/app-v2-column-menu-parity.js
           node --check public/js/app-v2-updates-parity.js
           node --check public/js/app-v2-updates-files-parity.js
@@ -50,13 +51,16 @@ jobs:
           node --check public/js/app-v2-view-menu-parity.js
           node --check public/js/app-v2-column-resize.js
           node --check public/js/app-v2-board-header-parity.js
+          node --check public/js/app-v2-board-advanced-parity.js
           node --check public/js/app-v2-board-archive-parity.js
           node --check public/js/app-v2-sidebar-parity.js
           node --check public/js/app-v2-item-menu-parity.js
           node --check public/js/app-v2-save-state-parity.js
           node --check public/js/app-v2-popover-parity.js
           node --check public/js/app-v2-menu-keyboard-parity.js
+          node --check models/Board.js
           node --check models/ItemUpdate.js
+          node --check routes/boardOperations.js
           node --check routes/boards.js
           node --check routes/items.js
           node --check routes/views.js
@@ -64,4 +68,5 @@ jobs:
           node --check routes/updates.js
           node --check routes/files.js
           node --check routes/subitemSchema.js
+          node --check services/stagingPromotion.js
           node --check server.js
