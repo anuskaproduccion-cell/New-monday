@@ -37,11 +37,43 @@
 
   app.sidebarBoardButtonHtml = function sidebarBoardButtonHtml(board) {
     const active = String(this.currentBoard?._id || '') === String(board._id);
-    return `<button type="button" class="sidebar-nav-item ${active ? 'active' : ''}" data-hierarchy-board="${this.escapeAttr(board._id)}" draggable="true" title="${this.escapeAttr(board.name)}">
+    return `<button type="button" class="sidebar-nav-item ${active ? 'active' : ''}" data-hierarchy-board="${this.escapeAttr(board._id)}" draggable="true" aria-keyshortcuts="Shift+F10" title="${this.escapeAttr(board.name)} · Shift+F10: mover a carpeta">
       <span class="sidebar-nav-item-icon">${this.escapeHtml(board.icon || '📋')}</span>
       <span class="sidebar-board-name">${this.escapeHtml(board.name)}</span>
       ${board.source === 'monday-import' ? '<span class="source-badge" title="Importado desde Monday en modo solo lectura">RO</span>' : ''}
     </button>`;
+  };
+
+  app.sidebarFocusableControls = function sidebarFocusableControls(nav = document.getElementById('sidebar-nav')) {
+    if (!nav) return [];
+    return [...nav.querySelectorAll('button:not([disabled])')]
+      .filter(button => !button.hidden && button.offsetParent !== null);
+  };
+
+  app.focusSidebarBoard = function focusSidebarBoard(boardId) {
+    const nav = document.getElementById('sidebar-nav');
+    const button = [...(nav?.querySelectorAll('[data-hierarchy-board]') || [])]
+      .find(entry => String(entry.dataset.hierarchyBoard || '') === String(boardId || ''));
+    button?.focus?.({ preventScroll: true });
+    button?.scrollIntoView?.({ block: 'nearest' });
+  };
+
+  app.openBoardFolderKeyboardMenu = function openBoardFolderKeyboardMenu(anchor, boardId) {
+    const board = this.boards.find(entry => String(entry._id) === String(boardId));
+    if (!board || !anchor) return;
+    document.querySelectorAll('.floating-menu').forEach(node => node.remove());
+    const folders = this.workspaceFolders();
+    const menu = document.createElement('div');
+    menu.className = 'floating-menu sidebar-folder-move-menu';
+    menu.innerHTML = `<div class="menu-title">Mover ${this.escapeHtml(board.name)}</div>
+      <button type="button" data-move-board-folder="">Organización automática</button>
+      ${folders.map(folder => `<button type="button" data-move-board-folder="${this.escapeAttr(folder.id)}">📁 ${this.escapeHtml(folder.title)}</button>`).join('') || '<div class="menu-note">No hay carpetas creadas.</div>'}`;
+    menu.querySelectorAll('[data-move-board-folder]').forEach(button => button.addEventListener('click', async () => {
+      const folderId = String(button.dataset.moveBoardFolder || '');
+      menu.remove();
+      await this.moveBoardToWorkspaceFolder(boardId, folderId, { focus: true });
+    }));
+    this.positionMenu(menu, anchor);
   };
 
   app.openCreateWorkspaceFolder = function openCreateWorkspaceFolder() {
@@ -105,7 +137,7 @@
     this.positionMenu(menu, anchor);
   };
 
-  app.moveBoardToWorkspaceFolder = async function moveBoardToWorkspaceFolder(boardId, folderId = '') {
+  app.moveBoardToWorkspaceFolder = async function moveBoardToWorkspaceFolder(boardId, folderId = '', { focus = false } = {}) {
     const board = this.boards.find(entry => String(entry._id) === String(boardId));
     if (!board) return;
     try {
@@ -117,15 +149,70 @@
       if (index >= 0) this.boards[index] = updated;
       if (String(this.currentBoard?._id || '') === String(updated._id)) this.currentBoard = updated;
       this.renderSidebar();
+      if (focus) requestAnimationFrame(() => this.focusSidebarBoard(updated._id));
       const folder = this.workspaceFolders().find(entry => String(entry.id) === String(folderId));
       this.showToast(folder ? `Tablero movido a ${folder.title}` : 'Tablero devuelto a organización automática');
     } catch (error) { this.showToast(error.message, true); }
+  };
+
+  app.bindSidebarHierarchyKeyboard = function bindSidebarHierarchyKeyboard(nav) {
+    if (!nav || nav.dataset.sidebarKeyboardBound === 'true') return;
+    nav.dataset.sidebarKeyboardBound = 'true';
+    nav.addEventListener('keydown', event => {
+      const target = event.target?.closest?.('button');
+      if (!target || !nav.contains(target)) return;
+
+      if (target.matches('[data-hierarchy-board]') && (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10'))) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.openBoardFolderKeyboardMenu(target, target.dataset.hierarchyBoard);
+        return;
+      }
+
+      const controls = this.sidebarFocusableControls(nav);
+      const index = controls.indexOf(target);
+      if (index < 0) return;
+      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+        event.preventDefault();
+        let nextIndex = index;
+        if (event.key === 'ArrowDown') nextIndex = Math.min(controls.length - 1, index + 1);
+        if (event.key === 'ArrowUp') nextIndex = Math.max(0, index - 1);
+        if (event.key === 'Home') nextIndex = 0;
+        if (event.key === 'End') nextIndex = controls.length - 1;
+        controls[nextIndex]?.focus?.({ preventScroll: true });
+        controls[nextIndex]?.scrollIntoView?.({ block: 'nearest' });
+        return;
+      }
+
+      if (target.matches('[data-sidebar-phase-toggle]')) {
+        const expanded = target.getAttribute('aria-expanded') === 'true';
+        if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          if (!expanded) target.click();
+          else target.closest('.sidebar-phase')?.querySelector('[data-hierarchy-board]')?.focus?.({ preventScroll: true });
+        }
+        if (event.key === 'ArrowLeft' && expanded) {
+          event.preventDefault();
+          target.click();
+        }
+        return;
+      }
+
+      if (target.matches('[data-hierarchy-board]') && event.key === 'ArrowLeft') {
+        const header = target.closest('.sidebar-phase')?.querySelector('[data-sidebar-phase-toggle]');
+        if (header) {
+          event.preventDefault();
+          header.focus?.({ preventScroll: true });
+        }
+      }
+    });
   };
 
   app.renderSidebar = function renderSidebarWithHierarchy() {
     baseRenderSidebar();
     const nav = document.getElementById('sidebar-nav');
     if (!nav) return;
+    this.bindSidebarHierarchyKeyboard(nav);
     const boards = this.visibleBoards().filter(board => !board.archived && !board.internal);
     if (!boards.length) {
       nav.innerHTML = '<div class="sidebar-no-boards">No hay tableros visibles</div>';
@@ -185,7 +272,8 @@
 
     nav.querySelectorAll('[data-sidebar-phase-toggle]').forEach(button => button.addEventListener('click', () => {
       const phaseId = button.dataset.sidebarPhaseToggle;
-      const section = nav.querySelector(`[data-sidebar-phase="${CSS.escape(phaseId)}"]`);
+      const section = [...nav.querySelectorAll('[data-sidebar-phase]')]
+        .find(entry => String(entry.dataset.sidebarPhase || '') === String(phaseId));
       const next = !section?.classList.contains('is-collapsed');
       this.setSidebarPhaseCollapsed(phaseId, next);
       section?.classList.toggle('is-collapsed', next);
