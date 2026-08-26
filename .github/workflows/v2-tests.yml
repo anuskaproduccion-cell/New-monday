@@ -77,6 +77,7 @@ jobs:
           node --check public/js/app-v2-accessibility-parity.js
           node --check public/js/app-v2-modal-accessibility-parity.js
           node --check public/js/app-v2-virtualization-parity.js
+          node --check public/js/app-v2-virtualization-index-parity.js
           node --check public/js/app-v2-realtime-parity.js
           node --check public/js/app-v2-realtime-batch-parity.js
       - name: STAGING secret availability preflight
