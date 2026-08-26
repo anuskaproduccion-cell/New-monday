@@ -61,7 +61,10 @@ assert.ok(responsiveCss.includes('.sidebar{width:156px}'), '560px shell must pre
 
 [
   '.button:focus-visible,',
-  '.dynamic-cell:focus-visible,',
+  '.sidebar-recent-item:focus-visible,',
+  '.sidebar-nav-item,\n.sidebar-favorite-item,\n.sidebar-recent-item{',
+  '.sidebar-phase-header{',
+  '.sidebar-folder.is-drop-target{',
   '.button:active:not(:disabled),',
   'button:disabled,',
   '.realtime-badge{',
