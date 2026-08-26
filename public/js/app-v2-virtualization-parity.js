@@ -12,6 +12,8 @@
   app.virtualBoardEnabled = false;
   app.virtualBoardRanges = new Map();
   app.virtualItemPositions = new Map();
+  app.virtualGroupItemIds = new Map();
+  app.virtualItemExtraHeights = new Map();
   app.virtualRenderFrame = null;
   app.virtualPreservedScrollTop = null;
   app.virtualScrollHost = null;
@@ -23,6 +25,8 @@
     if (previous !== next) {
       this.virtualBoardRanges.clear();
       this.virtualItemPositions.clear();
+      this.virtualGroupItemIds.clear();
+      this.virtualItemExtraHeights.clear();
       this.virtualBoardEnabled = false;
       this.virtualPreservedScrollTop = null;
     }
@@ -47,16 +51,24 @@
     const items = this.filteredBoardItems();
     this.virtualBoardEnabled = items.length > ENABLE_THRESHOLD;
     this.virtualItemPositions.clear();
+    this.virtualGroupItemIds.clear();
     if (!this.virtualBoardEnabled) {
       this.virtualBoardRanges.clear();
       return;
     }
+
+    const validItemIds = new Set(items.map(item => String(item._id)));
+    [...this.virtualItemExtraHeights.keys()].forEach(itemId => {
+      if (!validItemIds.has(String(itemId))) this.virtualItemExtraHeights.delete(itemId);
+    });
 
     const buckets = this.virtualGroupBuckets(items);
     const validGroups = new Set();
     buckets.forEach(({ group, items: groupItems }) => {
       const groupId = String(group.id);
       validGroups.add(groupId);
+      const itemIds = groupItems.map(item => String(item._id));
+      this.virtualGroupItemIds.set(groupId, itemIds);
       groupItems.forEach((item, index) => this.virtualItemPositions.set(String(item._id), { groupId, index, total: groupItems.length }));
       const previous = this.virtualBoardRanges.get(groupId) || { start: 0, end: WINDOW_SIZE, total: groupItems.length };
       const maxStart = Math.max(0, groupItems.length - WINDOW_SIZE);
@@ -68,9 +80,37 @@
     });
   };
 
-  app.virtualSpacerRowHtml = function virtualSpacerRowHtml(count, groupId, edge, columns) {
+  app.virtualEstimatedItemHeight = function virtualEstimatedItemHeight(itemId) {
+    return ROW_HEIGHT + Math.max(0, Number(this.virtualItemExtraHeights.get(String(itemId)) || 0));
+  };
+
+  app.virtualEstimatedSpanHeight = function virtualEstimatedSpanHeight(groupId, start = 0, end = 0) {
+    const ids = this.virtualGroupItemIds.get(String(groupId)) || [];
+    const from = Math.max(0, Number(start) || 0);
+    const to = Math.max(from, Math.min(ids.length, Number(end) || 0));
+    let height = 0;
+    for (let index = from; index < to; index += 1) height += this.virtualEstimatedItemHeight(ids[index]);
+    return height;
+  };
+
+  app.virtualIndexForOffset = function virtualIndexForOffset(groupId, offset = 0) {
+    const ids = this.virtualGroupItemIds.get(String(groupId)) || [];
+    const target = Math.max(0, Number(offset) || 0);
+    let consumed = 0;
+    for (let index = 0; index < ids.length; index += 1) {
+      const next = consumed + this.virtualEstimatedItemHeight(ids[index]);
+      if (target < next) return index;
+      consumed = next;
+    }
+    return Math.max(0, ids.length - 1);
+  };
+
+  app.virtualSpacerRowHtml = function virtualSpacerRowHtml(count, groupId, edge, columns, startIndex = null, endIndex = null) {
     if (count <= 0) return '';
-    const height = Math.max(1, count * ROW_HEIGHT);
+    const measured = Number.isInteger(startIndex) && Number.isInteger(endIndex)
+      ? this.virtualEstimatedSpanHeight(groupId, startIndex, endIndex)
+      : count * ROW_HEIGHT;
+    const height = Math.max(1, measured);
     return `<tr class="virtual-spacer-row" data-virtual-spacer="${edge}" data-virtual-group="${this.escapeAttr(groupId)}" aria-hidden="true"><td colspan="${columns.length + 3}"><div style="height:${height}px"></div></td></tr>`;
   };
 
@@ -82,11 +122,11 @@
     if (!range) return baseItemRowHtml(item, group, columns);
 
     if (position.index < range.start) {
-      if (position.index === 0) return this.virtualSpacerRowHtml(range.start, position.groupId, 'top', columns);
+      if (position.index === 0) return this.virtualSpacerRowHtml(range.start, position.groupId, 'top', columns, 0, range.start);
       return '';
     }
     if (position.index >= range.end) {
-      if (position.index === range.end) return this.virtualSpacerRowHtml(position.total - range.end, position.groupId, 'bottom', columns);
+      if (position.index === range.end) return this.virtualSpacerRowHtml(position.total - range.end, position.groupId, 'bottom', columns, range.end, position.total);
       return '';
     }
     return baseItemRowHtml(item, group, columns);
@@ -105,7 +145,8 @@
     if (sectionBottom < viewportTop - scroller.clientHeight || sectionTop > viewportBottom + scroller.clientHeight) return current;
 
     const localTop = Math.max(0, viewportTop - sectionTop - headerAllowance);
-    let start = Math.max(0, Math.floor(localTop / ROW_HEIGHT) - OVERSCAN_ROWS);
+    const modelIndex = this.virtualIndexForOffset(groupId, localTop);
+    let start = Math.max(0, modelIndex - OVERSCAN_ROWS);
     start = Math.floor(start / RANGE_STEP) * RANGE_STEP;
     start = Math.min(Math.max(0, current.total - WINDOW_SIZE), start);
     return { start, end: Math.min(current.total, start + WINDOW_SIZE), total: current.total };
@@ -159,6 +200,27 @@
     return range ? Number(range.total || 0) + 1 : null;
   };
 
+  app.measureVirtualExpandedRows = function measureVirtualExpandedRows(board) {
+    if (!board || !this.virtualBoardEnabled) return;
+    board.querySelectorAll('.item-row[data-item-id]').forEach(row => {
+      const itemId = String(row.dataset.itemId || '');
+      if (!itemId) return;
+      let extraHeight = 0;
+      let sibling = row.nextElementSibling;
+      while (sibling) {
+        const ownSchema = sibling.matches?.('.subitem-own-schema-host') && String(sibling.dataset.subitemSchemaParent || '') === itemId;
+        const composer = sibling.matches?.('.subitem-create-row') && String(sibling.dataset.subitemComposer || '') === itemId;
+        const legacy = sibling.matches?.('.subitem-row');
+        if (!ownSchema && !composer && !legacy) break;
+        const rectHeight = Number(sibling.getBoundingClientRect?.().height || 0);
+        const height = rectHeight > 0 ? rectHeight : Number(sibling.offsetHeight || 0);
+        extraHeight += Math.max(0, height);
+        sibling = sibling.nextElementSibling;
+      }
+      this.virtualItemExtraHeights.set(itemId, extraHeight);
+    });
+  };
+
   app.bindVirtualBoardScroll = function bindVirtualBoardScroll() {
     const scroller = document.getElementById('content');
     const board = scroller?.querySelector('.board-scroll');
@@ -167,6 +229,7 @@
       return;
     }
     board.dataset.virtualized = 'true';
+    this.measureVirtualExpandedRows(board);
     const total = this.filteredBoardItems().length;
     const rendered = board.querySelectorAll('.item-row[data-item-id]').length;
     board.querySelectorAll('.group-section[data-group-id]').forEach(section => {
