@@ -49,6 +49,19 @@
     return this.realtimeIsGlobalChange(change) || !change.item;
   };
 
+  app.realtimeItemRefreshMode = function realtimeItemRefreshMode(change = {}) {
+    if (this.realtimeIsGlobalChange(change) || !change.item) return 'board';
+    const type = String(change.type || '');
+    if (type === 'column_value_changed') {
+      return Number(change.meta?.cascadedCount || 0) > 0 ? 'board' : 'single';
+    }
+    if (['item_updated', 'item_moved', 'item_created', 'subitem_created', 'item_unarchived', 'item_restored'].includes(type)) {
+      return 'single';
+    }
+    if (['item_archived', 'item_trashed'].includes(type)) return 'remove';
+    return 'board';
+  };
+
   app.mergeRealtimeChanges = function mergeRealtimeChanges(current = null, incoming = {}) {
     if (!current) return incoming;
 
@@ -202,15 +215,19 @@
     this.realtimeRefreshing = true;
     try {
       const fullShellRefresh = this.realtimeNeedsFullShellRefresh(change);
+      const itemRefreshMode = fullShellRefresh ? 'board' : this.realtimeItemRefreshMode(change);
       let board = this.currentBoard;
       let items = null;
+      let updatedItem = null;
 
       if (fullShellRefresh) {
         [board, items] = await Promise.all([
           this.api(`/api/boards/${encodeURIComponent(boardId)}`),
           this.api(`/api/items/board/${encodeURIComponent(boardId)}?includeSubitems=true`)
         ]);
-      } else {
+      } else if (itemRefreshMode === 'single') {
+        updatedItem = await this.api(`/api/items/${encodeURIComponent(change.item)}`);
+      } else if (itemRefreshMode === 'board') {
         items = await this.api(`/api/items/board/${encodeURIComponent(boardId)}?includeSubitems=true`);
       }
 
@@ -236,9 +253,17 @@
         this.currentWorkspace = this.workspaces.find(workspace => this.boardBelongsToWorkspace(board, workspace)) || this.currentWorkspace;
       }
 
-      this.items = this.items
-        .filter(item => String(item.board?._id || item.board) !== boardId)
-        .concat(items || []);
+      if (fullShellRefresh || itemRefreshMode === 'board') {
+        this.items = this.items
+          .filter(item => String(item.board?._id || item.board) !== boardId)
+          .concat(items || []);
+      } else if (itemRefreshMode === 'single' && updatedItem) {
+        const index = this.items.findIndex(item => String(item._id) === String(updatedItem._id));
+        if (index >= 0) this.items[index] = updatedItem;
+        else this.items.push(updatedItem);
+      } else if (itemRefreshMode === 'remove') {
+        this.items = this.items.filter(item => String(item._id) !== String(change.item));
+      }
 
       if (fullShellRefresh) {
         this.renderWorkspaceSwitcher();
