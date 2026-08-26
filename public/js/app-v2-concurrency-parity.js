@@ -1,7 +1,22 @@
 (() => {
   const conflictMessage = 'La celda cambió en otra sesión. Recargué los datos para evitar sobrescribir cambios.';
 
+  app.localMutationsInFlight = Number(app.localMutationsInFlight || 0);
+
+  app.beginLocalMutation = function beginLocalMutation() {
+    this.localMutationsInFlight = Number(this.localMutationsInFlight || 0) + 1;
+  };
+
+  app.endLocalMutation = function endLocalMutation() {
+    this.localMutationsInFlight = Math.max(0, Number(this.localMutationsInFlight || 0) - 1);
+  };
+
+  app.hasLocalMutationInFlight = function hasLocalMutationInFlight() {
+    return Number(this.localMutationsInFlight || 0) > 0;
+  };
+
   app.updateColumnValue = async function updateColumnValueConcurrentSafe(id, columnId, value) {
+    this.beginLocalMutation();
     try {
       const current = this.findItem(id);
       if (!current?.updatedAt) {
@@ -36,6 +51,8 @@
       }
       this.showToast(err.message, true);
       return null;
+    } finally {
+      this.endLocalMutation();
     }
   };
 })();
