@@ -86,6 +86,11 @@ assert.ok(listeners.has('change'));
   await assertEchoSafe('/api/items/item-1/unarchive', 'POST', 'item unarchive only mutates the returned item');
   await assertEchoSafe('/api/items/item-1/restore', 'POST', 'item restore only mutates the returned item');
   await assertEchoSafe('/api/items/item-1', 'DELETE', 'moving an item to trash only mutates that item');
+  await assertEchoSafe(
+    '/api/item-ordering/reorder',
+    'POST',
+    'top-level item ordering is echo-safe because its client call sites perform an authoritative reload'
+  );
 
   await assertEchoRequired(
     '/api/items/item-1',
@@ -98,9 +103,9 @@ assert.ok(listeners.has('change'));
     'duplicate must keep its echo because the server also shifts sibling ordering'
   );
   await assertEchoRequired(
-    '/api/item-ordering/reorder',
+    '/api/item-ordering/item-1/subitems/reorder',
     'POST',
-    'ordering remains echo-required because it mutates multiple items'
+    'subitem ordering keeps its echo until a client reconciliation path is proven'
   );
 
   app.connectRealtime();
