@@ -115,25 +115,41 @@
     });
   };
 
+  app.applyOrderedBoardPrimaryItems = function applyOrderedBoardPrimaryItems(boardId, orderedItems = []) {
+    const sourceBoardId = String(boardId || '');
+    if (!sourceBoardId || !Array.isArray(orderedItems)) return false;
+    const preserved = this.items.filter(item => {
+      const itemBoardId = String(item.board?._id || item.board || '');
+      return itemBoardId !== sourceBoardId || Boolean(item.isSubitem);
+    });
+    this.items = preserved.concat(orderedItems);
+    return true;
+  };
+
   app.reorderItemByDrop = async function reorderItemByDrop(draggedId, targetId) {
+    const sourceBoardId = String(this.currentBoardId() || '');
     const dragged = this.findItem(draggedId);
     const target = this.findItem(targetId);
-    if (!dragged || !target) return;
+    if (!sourceBoardId || !dragged || !target) return;
 
     const groups = this.effectiveGroups();
     const sourceGroup = groups.find(group => group.id === dragged.groupId || group.title === dragged.group);
     const targetGroup = groups.find(group => group.id === target.groupId || group.title === target.group);
     if (!targetGroup) return;
 
-    const targetItems = this.boardItems().filter(item => (item.groupId || item.group) === (targetGroup.id || targetGroup.title) && item._id !== draggedId);
+    const sourceItemsSnapshot = this.boardItems();
+    const targetItems = sourceItemsSnapshot.filter(item => (item.groupId || item.group) === (targetGroup.id || targetGroup.title) && item._id !== draggedId);
     const targetIndex = Math.max(0, targetItems.findIndex(item => item._id === targetId));
     targetItems.splice(targetIndex, 0, dragged);
+    const remainingSource = sourceGroup && sourceGroup.id !== targetGroup.id
+      ? sourceItemsSnapshot.filter(item => item._id !== draggedId && (item.groupId || item.group) === (sourceGroup.id || sourceGroup.title))
+      : null;
 
     try {
-      await this.api('/api/item-ordering/reorder', {
+      let orderedItems = await this.api('/api/item-ordering/reorder', {
         method: 'POST',
         body: JSON.stringify({
-          boardId: this.currentBoardId(),
+          boardId: sourceBoardId,
           itemIds: targetItems.map(item => item._id),
           groupId: targetGroup.id,
           group: targetGroup.title,
@@ -141,12 +157,11 @@
         })
       });
 
-      if (sourceGroup && sourceGroup.id !== targetGroup.id) {
-        const remainingSource = this.boardItems().filter(item => item._id !== draggedId && (item.groupId || item.group) === (sourceGroup.id || sourceGroup.title));
-        await this.api('/api/item-ordering/reorder', {
+      if (remainingSource) {
+        orderedItems = await this.api('/api/item-ordering/reorder', {
           method: 'POST',
           body: JSON.stringify({
-            boardId: this.currentBoardId(),
+            boardId: sourceBoardId,
             itemIds: remainingSource.map(item => item._id),
             groupId: sourceGroup.id,
             group: sourceGroup.title,
@@ -155,7 +170,8 @@
         });
       }
 
-      await this.reloadBoardState();
+      this.applyOrderedBoardPrimaryItems(sourceBoardId, orderedItems);
+      if (String(this.currentBoardId() || '') === sourceBoardId) this.renderCurrentView();
       this.showToast('Orden actualizado');
     } catch (err) {
       this.showToast(err.message, true);
@@ -163,17 +179,19 @@
   };
 
   app.moveItemToGroupEnd = async function moveItemToGroupEnd(itemId, groupId) {
+    const sourceBoardId = String(this.currentBoardId() || '');
     const group = this.effectiveGroups().find(entry => entry.id === groupId);
     const item = this.findItem(itemId);
-    if (!group || !item) return;
+    if (!sourceBoardId || !group || !item) return;
     const targetItems = this.boardItems().filter(entry => entry._id !== itemId && (entry.groupId || entry.group) === (group.id || group.title));
     targetItems.push(item);
     try {
-      await this.api('/api/item-ordering/reorder', {
+      const orderedItems = await this.api('/api/item-ordering/reorder', {
         method: 'POST',
-        body: JSON.stringify({ boardId: this.currentBoardId(), itemIds: targetItems.map(entry => entry._id), groupId: group.id, group: group.title, groupColor: group.color })
+        body: JSON.stringify({ boardId: sourceBoardId, itemIds: targetItems.map(entry => entry._id), groupId: group.id, group: group.title, groupColor: group.color })
       });
-      await this.reloadBoardState();
+      this.applyOrderedBoardPrimaryItems(sourceBoardId, orderedItems);
+      if (String(this.currentBoardId() || '') === sourceBoardId) this.renderCurrentView();
       this.showToast('Elemento movido');
     } catch (err) { this.showToast(err.message, true); }
   };

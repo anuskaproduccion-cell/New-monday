@@ -32,6 +32,27 @@
     return false;
   };
 
+  app.realtimeOwnEchoSourceBoardId = function realtimeOwnEchoSourceBoardId(url, method = 'GET', options = {}) {
+    const normalizedMethod = String(method || 'GET').toUpperCase();
+    const normalizedUrl = String(url || '');
+    let body = options?.body;
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch { body = null; }
+    }
+
+    if (normalizedMethod === 'POST' && /^\/api\/item-ordering\/reorder(?:\?|$)/.test(normalizedUrl)) {
+      const orderingBoardId = body?.boardId;
+      if (orderingBoardId) return String(orderingBoardId);
+    }
+
+    if (normalizedMethod === 'POST' && /^\/api\/items(?:\?|$)/.test(normalizedUrl)) {
+      const itemBoardId = body?.board?._id || body?.board;
+      if (itemBoardId) return String(itemBoardId);
+    }
+
+    return String(this.currentBoardId?.() || '');
+  };
+
   app.realtimeOwnEchoChangeForRequest = function realtimeOwnEchoChangeForRequest(url, method = 'GET', response = null) {
     const normalizedMethod = String(method || 'GET').toUpperCase();
     const normalizedUrl = String(url || '');
@@ -124,7 +145,7 @@
     const method = String(options?.method || 'GET').toUpperCase();
     const isMutation = !READ_METHODS.has(method);
     const ownEchoSafe = this.realtimeOwnEchoSafeRequest(url, method);
-    const sourceBoardId = ownEchoSafe ? String(this.currentBoardId?.() || '') : '';
+    const sourceBoardId = ownEchoSafe ? this.realtimeOwnEchoSourceBoardId(url, method, options) : '';
     const headers = { ...(options.headers || {}) };
     if (ownEchoSafe) headers['X-New-Monday-Client-Id'] = this.clientSessionId;
 
