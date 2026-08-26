@@ -2,7 +2,9 @@ const assert = require('assert');
 const {
   normalizeName,
   collectBoardIdCandidates,
-  resolveInternalSubitemBoard
+  resolveInternalSubitemBoard,
+  operationalColumns,
+  schemaPayload
 } = require('../routes/subitemSchema');
 
 assert.strictEqual(normalizeName('  Subelementos   ÁREA  '), 'subelementos area');
@@ -49,5 +51,46 @@ const ambiguous = resolveInternalSubitemBoard({
   { _id: 'b', mondayId: '2', name: 'Subelementos de Duplicado' }
 ]);
 assert.strictEqual(ambiguous, null);
+
+const normalizedColumns = operationalColumns([
+  { id: 'name', title: 'Name', type: 'name', order: 0 },
+  { id: 'subtasks', title: 'Subitems', type: 'subtasks', order: 1 },
+  { id: 'status', title: 'Estado', type: 'status', order: 7, settings: { labels: { 1: 'Done' } } },
+  { id: 'date', title: 'Fecha', type: 'date', order: 3, hidden: true }
+]);
+assert.deepStrictEqual(normalizedColumns.map(column => column.id), ['date', 'status']);
+assert.deepStrictEqual(normalizedColumns.map(column => column.order), [0, 1]);
+assert.strictEqual(normalizedColumns[0].hidden, true);
+assert.deepStrictEqual(normalizedColumns[1].settings, { labels: { 1: 'Done' } });
+
+const importedPayload = schemaPayload({
+  _id: 'parent1',
+  mondayId: '5001',
+  subitemSchemaCustomized: false,
+  subitemColumns: []
+}, {
+  _id: 'internal1',
+  mondayId: '9001',
+  name: 'Subelementos de MQFR_POST',
+  columns: [{ id: 'status', title: 'Estado', type: 'status', order: 0 }]
+});
+assert.strictEqual(importedPayload.mode, 'imported');
+assert.strictEqual(importedPayload.customized, false);
+assert.strictEqual(importedPayload.columns.length, 1);
+
+const localPayload = schemaPayload({
+  _id: 'parent1',
+  mondayId: '5001',
+  subitemSchemaCustomized: true,
+  subitemColumns: [{ id: 'local_text', title: 'Notas', type: 'text', order: 0 }]
+}, {
+  _id: 'internal1',
+  mondayId: '9001',
+  name: 'Subelementos de MQFR_POST',
+  columns: [{ id: 'status', title: 'Estado', type: 'status', order: 0 }]
+});
+assert.strictEqual(localPayload.mode, 'local');
+assert.strictEqual(localPayload.customized, true);
+assert.deepStrictEqual(localPayload.columns.map(column => column.id), ['local_text']);
 
 console.log('subitemSchema.test.js passed');
