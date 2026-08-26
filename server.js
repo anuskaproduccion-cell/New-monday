@@ -121,6 +121,7 @@ const backupsRouter = require('./routes/backups');
 const updatesRouter = require('./routes/updates');
 const activityRouter = require('./routes/activity');
 const filesRouter = require('./routes/files');
+const realtimeRouter = require('./routes/realtime');
 
 function destructiveSeedGuard(req, res, next) {
   if (req.method === 'POST' && String(process.env.ALLOW_DESTRUCTIVE_SEED || '').toLowerCase() !== 'true') {
@@ -136,6 +137,7 @@ function mondayCutoverGuard(req, res, next) {
   return next();
 }
 
+app.use('/api/realtime', realtimeRouter);
 app.use('/api/workspaces', workspacesRouter);
 app.use('/api/boards', boardOperationsRouter);
 app.use('/api/boards', subitemSchemaRouter);
