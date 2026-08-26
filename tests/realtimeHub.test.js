@@ -9,6 +9,11 @@ const {
 } = require('../services/realtimeHub');
 const { runWithRequestContext } = require('../services/requestContext');
 
+function framePayload(frame) {
+  const line = String(frame || '').split('\n').find(entry => entry.startsWith('data: '));
+  return line ? JSON.parse(line.slice(6)) : null;
+}
+
 resetRealtimeHubForTests();
 const frames = [];
 const fakeResponse = { write(frame) { frames.push(frame); } };
@@ -77,13 +82,15 @@ const peerOnlyDelivered = runWithRequestContext({ clientId: 'client-a' }, () => 
   board: 'board-123',
   item: 'item-789',
   type: 'item_updated',
-  message: 'Cambio originado en client-a'
+  message: 'Elemento actualizado'
 }));
 assert.strictEqual(peerOnlyDelivered, 1, 'originating SSE client must be excluded from its own mutation echo');
 assert.strictEqual(ownFrames.length, 0, 'originating client must not receive its own realtime frame');
 assert.strictEqual(peerFrames.length, 1, 'other sessions must still receive the realtime frame');
-assert.ok(peerFrames[0].includes('"item":"item-789"'));
-assert.strictEqual(peerFrames[0].includes('client-a'), false, 'ephemeral client id must not be exposed in the SSE payload');
+const peerPayload = framePayload(peerFrames[0]);
+assert.strictEqual(peerPayload.item, 'item-789');
+assert.strictEqual(Object.prototype.hasOwnProperty.call(peerPayload, 'originClientId'), false, 'ephemeral origin id must not be serialized into SSE payloads');
+assert.strictEqual(JSON.stringify(peerPayload.meta || {}).includes('client-a'), false, 'origin id must not leak through realtime metadata');
 
 const explicitOriginDelivered = publishRealtimeChange({
   board: 'board-123',
@@ -95,6 +102,7 @@ const explicitOriginDelivered = publishRealtimeChange({
 assert.strictEqual(explicitOriginDelivered, 1);
 assert.strictEqual(ownFrames.length, 1, 'client-a should receive events originated by client-b');
 assert.strictEqual(peerFrames.length, 1, 'client-b should not receive its own explicit-origin event');
+assert.strictEqual(Object.prototype.hasOwnProperty.call(framePayload(ownFrames[0]), 'originClientId'), false);
 
 removeOwn();
 removePeer();
