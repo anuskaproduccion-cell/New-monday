@@ -28,9 +28,9 @@ La paridad visual se aplica como capas finales del cascade, después de los CSS 
 2. `v2-visual-parity-components.css`: pickers especializados, Updates, editor rico, menciones, adjuntos, save-state y responsive interno de componentes.
 3. `v2-visual-parity-views.css`: Gantt, Files Gallery, Activity/Archive/Trash y Backup/Recovery.
 4. `v2-visual-parity-responsive.css`: compactación progresiva del shell y superficies globales a 1100/900/720/560 px sin ocultar navegación funcional.
-5. `v2-visual-parity-states.css`: focus final, pressed, disabled, selección de menús, realtime, toasts, connection errors y reduced-motion.
+5. `v2-visual-parity-states.css`: focus final, pressed, disabled, sidebar jerárquico, drag/drop, resize, selección de menús, realtime, toasts, connection errors y reduced-motion.
 
-La capa de estados se carga en último lugar para impedir que estilos históricos silencien feedback de teclado, estados deshabilitados o señalización del sistema.
+La capa de estados se carga en último lugar para impedir que estilos históricos silencien feedback de teclado, estados deshabilitados, drag/resize o señalización del sistema.
 
 Esta estrategia evita refactors destructivos de decenas de hojas históricas y permite revisar/retirar cada capa de forma aislada.
 
@@ -51,6 +51,8 @@ Estado: **BASE CERRADA EN CÓDIGO · QA VISUAL PENDIENTE**
 - [x] Unificar board header, título, subtítulo, búsqueda global y botones.
 - [x] Unificar tabs de vistas, active/hover y borde inferior.
 - [x] Añadir adaptación responsive conservadora a 1100/900/720/560 px sin esconder los tableros.
+- [x] Unificar tableros normales, Favoritos, Recientes, Fases y Carpetas: hover/active/focus/drop-target.
+- [x] Añadir `focus-visible` faltante a Recientes.
 - [ ] Revisar responsive real en navegador.
 
 ### Tabla principal
@@ -60,6 +62,8 @@ Estado: **BASE CERRADA EN CÓDIGO · QA VISUAL PENDIENTE**
 - [x] Unificar grupo, título/color, add-item row y celdas editables.
 - [x] Unificar Status/People/chips y estados de edición.
 - [x] Integrar visualmente `Guardando… / ✓ / !` con el resto de la tabla.
+- [x] Unificar feedback visual de drag source, drop target y group drop target.
+- [x] Unificar handle activo de resize de columnas sin modificar su lógica.
 - [ ] QA visual con subitems expandidos y virtualización activa.
 
 ## Fase 2 · Menús, popovers, modales y Updates
@@ -74,6 +78,9 @@ Estado: **BASE Y MICROACABADO DE CÓDIGO CERRADOS · QA REAL PENDIENTE**
 - [x] Integrar menciones y picker de menciones.
 - [x] Integrar adjuntos pendientes/publicados y botones de archivo.
 - [x] Añadir adaptación responsive de drawer/pickers/componentes.
+- [x] Mantener popovers anclados al hacer scroll/resize y limitar su posición al viewport.
+- [x] Corregir cierre exterior persistente: un clic dentro del popover ya no consume el listener que permite cerrarlo después desde fuera.
+- [x] Añadir `tests/popoverPositioning.test.js` al `npm test`.
 - [ ] Ajustar detalles adicionales únicamente si QA real detecta diferencias visibles.
 
 ## Fase 3 · Vistas especiales
@@ -98,9 +105,11 @@ La revisión se guía por `docs/MONDAY_VISUAL_QA_CHECKLIST_2026-08-26.md`.
 - [x] Integrar hover/focus/save feedback principales en el sistema visual.
 - [x] Unificar pressed/active sin desplazar layout.
 - [x] Unificar disabled nativo y `aria-disabled`.
+- [x] Unificar feedback de drag/drop y resize.
 - [x] Integrar estados En vivo / Reconectando / Sin conexión en el lenguaje visual del header.
 - [x] Integrar toasts, connection error, loading y empty state.
 - [x] Endurecer `prefers-reduced-motion` en la capa final.
+- [x] Cubrir posicionamiento y ciclo de cierre exterior de popovers con regresión automática.
 - [ ] Auditoría visual pantalla por pantalla.
 - [ ] Restauración de foco y teclado visualmente coherentes en navegador real.
 - [ ] QA con dos sesiones realtime.
@@ -119,10 +128,19 @@ La revisión se guía por `docs/MONDAY_VISUAL_QA_CHECKLIST_2026-08-26.md`.
 - estén presentes Gantt, Files, lifecycle y Backup/Recovery;
 - existan los breakpoints 1100/900/720/560;
 - el sidebar se compacte sin desaparecer en los breakpoints estrechos;
-- existan focus, pressed, disabled, realtime, toast, connection-error y reduced-motion finales;
+- Favoritos/Recientes/Fases/Carpetas mantengan estados finales comunes;
+- existan focus, pressed, disabled, drag/drop, resize, realtime, toast, connection-error y reduced-motion finales;
 - las cinco capas visuales se carguen al final del cascade y en el orden correcto, con `v2-visual-parity-states.css` en último lugar.
 
-La regresión forma parte de `npm test`.
+`tests/popoverPositioning.test.js` comprueba que:
+
+- el popover siga a su ancla en resize y scroll;
+- se limite contra los bordes derecho/inferior del viewport y pueda voltearse sobre el ancla;
+- mantenga un gutter mínimo;
+- el listener de cierre exterior se limpie con `AbortController`;
+- un clic interior no consuma prematuramente el seguimiento de clic exterior.
+
+Ambas regresiones forman parte de `npm test`.
 
 ## Criterios técnicos
 
@@ -135,8 +153,8 @@ La regresión forma parte de `npm test`.
 
 ## Estado de paridad global
 
-La paridad funcional principal permanece cerrada en código. La **base de paridad visual / look & feel del alcance auditado está implementada en código**: shell/tabla, pickers/Updates, editor rico/menciones/adjuntos, Gantt, Files, lifecycle, Backup/Recovery, responsive conservador y estados globales de interacción/sistema.
+La paridad funcional principal permanece cerrada en código. La **base de paridad visual / look & feel del alcance auditado está implementada en código**: shell/tabla, jerarquía lateral, pickers/Updates, editor rico/menciones/adjuntos, Gantt, Files, lifecycle, Backup/Recovery, responsive conservador, estados globales, drag/resize y comportamiento base de popovers.
 
-El último HEAD funcional de esta tanda, `9c9554cd55908d7727c649f89397c6dd162ed873`, pasó las dos puertas de CI el 2026-08-26.
+El último HEAD funcional de esta tanda, `02367aaa0e8f42fd3caff8402dd68ce79583d662`, pasó las dos puertas de CI el 2026-08-26.
 
 Esto todavía no equivale a “100% visual verificado”. El cierre depende de ejecutar la checklist comparativa en navegador real y corregir las diferencias que esa observación revele. Hasta entonces New Monday permanece visualmente en fase de QA y la PR #6 continúa Draft.
