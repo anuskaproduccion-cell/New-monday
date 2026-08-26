@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { safeFilename, safeContentType, containsFileReference, MAX_FILE_BYTES } = require('../routes/files');
+const { safeFilename, safeContentType, inlinePreviewAllowed, containsFileReference, MAX_FILE_BYTES } = require('../routes/files');
 const { normalizeAttachments } = require('../routes/updates');
 
 assert.strictEqual(safeFilename(encodeURIComponent('Plan de rodaje v3.pdf')), 'Plan de rodaje v3.pdf');
@@ -11,6 +11,11 @@ assert.strictEqual(safeContentType('application/pdf'), 'application/pdf');
 assert.strictEqual(safeContentType('image/jpeg'), 'image/jpeg');
 assert.strictEqual(safeContentType('text/html; charset=utf-8'), 'application/octet-stream');
 assert.strictEqual(safeContentType('not a mime'), 'application/octet-stream');
+assert.strictEqual(inlinePreviewAllowed('application/pdf', 'doc.pdf'), true);
+assert.strictEqual(inlinePreviewAllowed('image/png', 'frame.png'), true);
+assert.strictEqual(inlinePreviewAllowed('application/octet-stream', 'frame.webp'), true);
+assert.strictEqual(inlinePreviewAllowed('text/html', 'page.html'), false);
+assert.strictEqual(inlinePreviewAllowed('application/zip', 'package.zip'), false);
 assert.strictEqual(MAX_FILE_BYTES, 25 * 1024 * 1024);
 
 assert.strictEqual(containsFileReference({ assets: [{ id: 'abc123' }] }, 'abc123'), true);
