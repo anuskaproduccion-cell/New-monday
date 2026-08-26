@@ -6,6 +6,7 @@ const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'v2-visu
 const componentCss = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'v2-visual-parity-components.css'), 'utf8');
 const viewCss = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'v2-visual-parity-views.css'), 'utf8');
 const responsiveCss = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'v2-visual-parity-responsive.css'), 'utf8');
+const stateCss = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'v2-visual-parity-states.css'), 'utf8');
 const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
 
 const expectedTokens = [
@@ -58,14 +59,27 @@ expectedTokens.forEach(token => assert.ok(css.includes(token), `missing visual t
 assert.ok(responsiveCss.includes('.sidebar{width:176px}'), '720px shell must compact sidebar without hiding navigation');
 assert.ok(responsiveCss.includes('.sidebar{width:156px}'), '560px shell must preserve a narrow but usable sidebar');
 
+[
+  '.button:focus-visible,',
+  '.dynamic-cell:focus-visible,',
+  '.button:active:not(:disabled),',
+  'button:disabled,',
+  '.realtime-badge{',
+  '.toast{',
+  '.connection-error{',
+  '@media(prefers-reduced-motion:reduce)'
+].forEach(selector => assert.ok(stateCss.includes(selector), `missing visual state selector ${selector}`));
+
 const visualLink = '<link rel="stylesheet" href="/css/v2-visual-parity.css">';
 const componentLink = '<link rel="stylesheet" href="/css/v2-visual-parity-components.css">';
 const viewLink = '<link rel="stylesheet" href="/css/v2-visual-parity-views.css">';
 const responsiveLink = '<link rel="stylesheet" href="/css/v2-visual-parity-responsive.css">';
+const stateLink = '<link rel="stylesheet" href="/css/v2-visual-parity-states.css">';
 assert.ok(html.includes(visualLink), 'visual parity stylesheet must be loaded');
 assert.ok(html.includes(componentLink), 'visual component parity stylesheet must be loaded');
 assert.ok(html.includes(viewLink), 'visual special-view parity stylesheet must be loaded');
 assert.ok(html.includes(responsiveLink), 'responsive visual parity stylesheet must be loaded');
+assert.ok(html.includes(stateLink), 'final interaction/system-state parity stylesheet must be loaded');
 assert.ok(
   html.indexOf(visualLink) > html.indexOf('<link rel="stylesheet" href="/css/v2-realtime.css">'),
   'visual parity stylesheet must load after functional/component styles so it can act as the final visual layer'
@@ -80,7 +94,11 @@ assert.ok(
 );
 assert.ok(
   html.indexOf(responsiveLink) > html.indexOf(viewLink),
-  'responsive visual layer must load last so breakpoint overrides win without duplicating component logic'
+  'responsive visual layer must load after view/component layers'
+);
+assert.ok(
+  html.indexOf(stateLink) > html.indexOf(responsiveLink),
+  'interaction/system-state layer must load last so focus, pressed, disabled and feedback states cannot be muted by legacy CSS'
 );
 
 assert.ok(componentCss.includes('@media(max-width:900px)'), 'visual component layer must include narrow desktop/tablet adaptation');
