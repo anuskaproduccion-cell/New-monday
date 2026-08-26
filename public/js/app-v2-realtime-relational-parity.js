@@ -68,6 +68,9 @@
         this.items = this.items.filter(item => String(item._id) !== String(change.item));
       }
 
+      if (typeof this.closePositionedMenusForRoot === 'function') {
+        this.closePositionedMenusForRoot(document.getElementById('content'));
+      }
       this.renderCurrentView();
       this.realtimeLastRefreshAt = Date.now();
       if (typeof this.announceA11y === 'function') {
