@@ -138,6 +138,7 @@ async function promoteStagingRun(runId, confirmation) {
       {
         $set: {
           name: source.name,
+          description: source.description || '',
           workspace: source.workspaceName || workspace?.name || 'Sin workspace',
           workspaceRef: workspace?._id || null,
           order: 0,
