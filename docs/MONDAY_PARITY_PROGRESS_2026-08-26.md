@@ -45,7 +45,9 @@ Este documento complementa `MONDAY_PARITY_AUDIT_2026-08-25.md`. La primera gran 
 - [x] **Refresco remoto dirigido**: cambios simples pueden leer solo el item afectado; cascadas, bulk, ordering y cambios estructurales conservan refrescos más amplios por seguridad.
 - [x] **Coalescencia de ráfagas**: cambios rápidos no pierden items, conservan siempre el evento de mayor alcance y tienen un límite de latencia aproximado de 1,2 s salvo interacción local activa.
 - [x] **Coordinación con mutaciones locales**: realtime se aplaza mientras hay `POST/PATCH/PUT/DELETE` local en vuelo, eliminando carreras entre blur/guardado y refresco remoto.
-- [x] **Supresión de eco propio solo en mutaciones eco-seguras**: cada pestaña usa un identificador efímero compartido entre su API y su stream SSE. La política está auditada para el PATCH condicional de celda, crear item, mover item, archivar, desarchivar, restaurar y enviar un item a papelera. Duplicar y reordenar conservan su eco porque afectan a otros items además del principal. El identificador no es autenticación, no se persiste y no forma parte del payload de cambio.
+- [x] **Relation / Mirror realtime entre tableros**: si el tablero visible refleja datos de uno o varios tableros origen, los eventos SSE de esos tableros dejan de descartarse. Cada tablero origen mantiene su propia cola; cambios simples leen solo el item, cascadas/lotes leen el conjunto del origen y cambios estructurales refrescan también su metadata. Tras actualizar la caché del origen se repinta únicamente la vista actual, evitando reconstruir el shell.
+- [x] **Supresión de eco propio solo en mutaciones eco-seguras**: cada pestaña usa un identificador efímero compartido entre su API y su stream SSE. La política está auditada para el PATCH condicional de celda, crear item, mover item, archivar, desarchivar, restaurar y enviar un item a papelera. Duplicar, reordenar y PATCH genéricos conservan su eco porque pueden producir efectos adicionales que la respuesta local no representa de forma completa. El identificador no es autenticación, no se persiste y no forma parte del payload de cambio.
+- [x] **Propagación del origen validada de extremo a extremo**: el `clientId` entra por request context, sobrevive a `await` mediante `AsyncLocalStorage`, `ActivityEvent` se persiste y el hub excluye solo a la conexión SSE del mismo origen; las demás sesiones reciben el cambio. Las mutaciones sin identificador continúan emitiéndose a todas las sesiones.
 - [x] **Reconexión segura**: al restablecer SSE se hace una resincronización para recuperar cambios que pudieran haberse producido durante la desconexión.
 - [x] **Estado de conexión visible**: indicador En vivo / Reconectando / Sin conexión y revalidación al volver a una pestaña tras inactividad.
 
@@ -79,9 +81,11 @@ Por tanto, lo pendiente ya no es otra gran fase de reconstrucción funcional. La
 
 ## Validación
 
-El HEAD funcional `cee2b9518a8782bc555941344d35abf66ffed669` quedó verde en ambas puertas de CI el 2026-08-26:
+El HEAD funcional `4ea2029d0c282a46f4156b7e004f64e09dd12e46` quedó verde en ambas puertas de CI el 2026-08-26:
 
-1. `New Monday v2 validation`: `npm test`, audit de dependencias y syntax checks: **PASS**; STAGING/recovery/auditoría publicada no se ejecutaron sin disparador explícito.
-2. `New Monday group and timeline parity validation`: `npm test`, `npm audit --omit=dev --audit-level=high` y syntax checks específicos: **PASS**.
+1. `New Monday v2 validation`, run `32980916178`: `npm test`, audit de dependencias y syntax checks: **PASS**; STAGING/recovery/auditoría publicada no se ejecutaron sin disparador explícito.
+2. `New Monday group and timeline parity validation`, run `32980915942`: `npm test`, `npm audit --omit=dev --audit-level=high` y syntax checks específicos: **PASS**.
 
-La cobertura incluye, entre otros, realtime cliente/servidor, coalescencia y latencia de ráfagas, contexto de origen, política de eco propio segura, tracking de mutaciones, virtualización por alturas, teclado/rangos, modales, menús y sidebar.
+El HEAD inmediatamente anterior `5caf26e1aaa8715bc731a5236a6adb42de9e8f19`, que endurece las colas realtime separadas por tablero relacionado y el orden de carga del bridge Relation/Mirror, también pasó ambas puertas (`32980523678` y `32980523692`).
+
+La cobertura incluye, entre otros, realtime cliente/servidor, Relation/Mirror cross-board y multi-board, coalescencia y latencia de ráfagas, contexto de origen atravesando persistencia de actividad, política de eco propio segura, tracking de mutaciones, virtualización por alturas, teclado/rangos, modales, menús y sidebar.
