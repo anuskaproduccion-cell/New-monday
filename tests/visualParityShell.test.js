@@ -43,7 +43,9 @@ expectedTokens.forEach(token => assert.ok(css.includes(token), `missing visual t
   '.files-gallery-header{',
   '.files-gallery-card{',
   '.lifecycle-item{',
-  '.board-activity-list{'
+  '.board-activity-list{',
+  '.backup-modal{',
+  '.backup-summary>div{'
 ].forEach(selector => assert.ok(viewCss.includes(selector), `missing visual view selector ${selector}`));
 
 const visualLink = '<link rel="stylesheet" href="/css/v2-visual-parity.css">';
