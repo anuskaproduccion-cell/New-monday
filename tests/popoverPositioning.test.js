@@ -4,6 +4,7 @@ const path = require('path');
 const vm = require('vm');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'app-v2-popover-parity.js'), 'utf8');
+const realtimeSource = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'app-v2-realtime-parity.js'), 'utf8');
 
 assert.ok(source.includes('positionMenuWithAnchorTracking'), 'popover positioning override must exist');
 assert.ok(source.includes('closePositionedMenusForRoot'), 'popover lifecycle must expose cleanup before replacing an anchored root');
@@ -62,5 +63,54 @@ headerAnchor.isConnected = false;
 app.closePositionedMenusForRoot(contentRoot);
 assert.strictEqual(headerRemoved, 1, 'disconnected anchors must be cleaned even when they are outside the supplied root');
 assert.strictEqual(app.positionedMenus.size, 0);
+
+const globalRefreshBlock = realtimeSource.match(/app\.refreshGlobalStateFromRealtime\s*=\s*async function[\s\S]*?\n\s*app\.refreshCurrentBoardFromRealtime/);
+assert.ok(globalRefreshBlock, 'global realtime refresh block must remain detectable');
+assert.ok(
+  globalRefreshBlock[0].includes('this.closeRealtimeMenusForRefresh(true);'),
+  'global realtime refresh must close popovers anchored anywhere in the shell before rebuilding it'
+);
+
+const boardRefreshBlock = realtimeSource.match(/app\.refreshCurrentBoardFromRealtime\s*=\s*async function[\s\S]*?\n\s*app\.connectRealtime/);
+assert.ok(boardRefreshBlock, 'current-board realtime refresh block must remain detectable');
+assert.ok(
+  boardRefreshBlock[0].includes('this.closeRealtimeMenusForRefresh(fullShellRefresh);'),
+  'current-board refresh must choose popover cleanup scope from its shell-refresh policy'
+);
+assert.ok(
+  boardRefreshBlock[0].includes('this.closeRealtimeMenusForRefresh(true);'),
+  'archived-board replacement must close popovers across the shell before selecting another board'
+);
+
+const realtimeContentRoot = { id: 'content-root' };
+const realtimeBodyRoot = { id: 'body-root' };
+const realtimeDocument = {
+  body: realtimeBodyRoot,
+  activeElement: null,
+  getElementById(id) { return id === 'content' ? realtimeContentRoot : null; },
+  querySelector() { return null; },
+  addEventListener() {}
+};
+const closedRoots = [];
+const realtimeApp = {
+  init() {},
+  closePositionedMenusForRoot(root) { closedRoots.push(root); }
+};
+vm.runInNewContext(realtimeSource, {
+  app: realtimeApp,
+  document: realtimeDocument,
+  window: {},
+  navigator: {},
+  console,
+  setTimeout,
+  clearTimeout,
+  encodeURIComponent
+});
+
+assert.strictEqual(typeof realtimeApp.closeRealtimeMenusForRefresh, 'function');
+realtimeApp.closeRealtimeMenusForRefresh(false);
+realtimeApp.closeRealtimeMenusForRefresh(true);
+assert.strictEqual(closedRoots[0], realtimeContentRoot, 'partial realtime refresh must clean only popovers anchored in #content');
+assert.strictEqual(closedRoots[1], realtimeBodyRoot, 'full/global realtime refresh must clean popovers anchored anywhere in the shell');
 
 console.log('popover positioning tests passed');
