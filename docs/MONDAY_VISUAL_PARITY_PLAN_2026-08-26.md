@@ -14,7 +14,7 @@ Se considera alcanzada cuando, dentro de los flujos auditados, New Monday mantie
 - densidad de tabla y relación entre cabeceras, filas, grupos y columnas;
 - tipografía, contraste y pesos coherentes;
 - controles compactos, radios, bordes y sombras homogéneos;
-- estados hover, focus, selected, disabled, loading y save feedback;
+- estados hover, focus, pressed, selected, disabled, loading y save feedback;
 - menús, popovers, modales y paneles laterales con la misma familia visual;
 - Gantt, Updates, Files, ciclo de vida y Backup/Recovery integrados en el mismo sistema visual.
 
@@ -28,6 +28,9 @@ La paridad visual se aplica como capas finales del cascade, después de los CSS 
 2. `v2-visual-parity-components.css`: pickers especializados, Updates, editor rico, menciones, adjuntos, save-state y responsive interno de componentes.
 3. `v2-visual-parity-views.css`: Gantt, Files Gallery, Activity/Archive/Trash y Backup/Recovery.
 4. `v2-visual-parity-responsive.css`: compactación progresiva del shell y superficies globales a 1100/900/720/560 px sin ocultar navegación funcional.
+5. `v2-visual-parity-states.css`: focus final, pressed, disabled, selección de menús, realtime, toasts, connection errors y reduced-motion.
+
+La capa de estados se carga en último lugar para impedir que estilos históricos silencien feedback de teclado, estados deshabilitados o señalización del sistema.
 
 Esta estrategia evita refactors destructivos de decenas de hojas históricas y permite revisar/retirar cada capa de forma aislada.
 
@@ -93,7 +96,11 @@ La revisión se guía por `docs/MONDAY_VISUAL_QA_CHECKLIST_2026-08-26.md`.
 
 - [x] Preparar breakpoints responsive del shell sin esconder navegación.
 - [x] Integrar hover/focus/save feedback principales en el sistema visual.
-- [x] Mantener `prefers-reduced-motion` en las nuevas capas.
+- [x] Unificar pressed/active sin desplazar layout.
+- [x] Unificar disabled nativo y `aria-disabled`.
+- [x] Integrar estados En vivo / Reconectando / Sin conexión en el lenguaje visual del header.
+- [x] Integrar toasts, connection error, loading y empty state.
+- [x] Endurecer `prefers-reduced-motion` en la capa final.
 - [ ] Auditoría visual pantalla por pantalla.
 - [ ] Restauración de foco y teclado visualmente coherentes en navegador real.
 - [ ] QA con dos sesiones realtime.
@@ -112,7 +119,8 @@ La revisión se guía por `docs/MONDAY_VISUAL_QA_CHECKLIST_2026-08-26.md`.
 - estén presentes Gantt, Files, lifecycle y Backup/Recovery;
 - existan los breakpoints 1100/900/720/560;
 - el sidebar se compacte sin desaparecer en los breakpoints estrechos;
-- las cuatro capas visuales se carguen al final del cascade y en orden correcto.
+- existan focus, pressed, disabled, realtime, toast, connection-error y reduced-motion finales;
+- las cinco capas visuales se carguen al final del cascade y en el orden correcto, con `v2-visual-parity-states.css` en último lugar.
 
 La regresión forma parte de `npm test`.
 
@@ -127,8 +135,8 @@ La regresión forma parte de `npm test`.
 
 ## Estado de paridad global
 
-La paridad funcional principal permanece cerrada en código. La **base de paridad visual / look & feel del alcance auditado está implementada en código**: shell/tabla, pickers/Updates, editor rico/menciones/adjuntos, Gantt, Files, lifecycle, Backup/Recovery y responsive conservador.
+La paridad funcional principal permanece cerrada en código. La **base de paridad visual / look & feel del alcance auditado está implementada en código**: shell/tabla, pickers/Updates, editor rico/menciones/adjuntos, Gantt, Files, lifecycle, Backup/Recovery, responsive conservador y estados globales de interacción/sistema.
 
-El último HEAD funcional responsive `5c1616b6fb0e6d9e8dad70c9b89b7d0702a197e8` pasó las dos puertas de CI el 2026-08-26.
+El último HEAD funcional de esta tanda, `9c9554cd55908d7727c649f89397c6dd162ed873`, pasó las dos puertas de CI el 2026-08-26.
 
 Esto todavía no equivale a “100% visual verificado”. El cierre depende de ejecutar la checklist comparativa en navegador real y corregir las diferencias que esa observación revele. Hasta entonces New Monday permanece visualmente en fase de QA y la PR #6 continúa Draft.
