@@ -108,7 +108,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 const workspacesRouter = require('./routes/workspaces');
 const viewsRouter = require('./routes/views');
 const boardsRouter = require('./routes/boards');
+const boardOperationsRouter = require('./routes/boardOperations');
+const subitemSchemaRouter = require('./routes/subitemSchema');
 const bulkItemsRouter = require('./routes/bulkItems');
+const conditionalColumnsRouter = require('./routes/conditionalColumns');
 const itemsRouter = require('./routes/items');
 const itemOrderingRouter = require('./routes/itemOrdering');
 const crewRouter = require('./routes/crew');
@@ -117,6 +120,8 @@ const mondayImportRouter = require('./routes/mondayImport');
 const backupsRouter = require('./routes/backups');
 const updatesRouter = require('./routes/updates');
 const activityRouter = require('./routes/activity');
+const filesRouter = require('./routes/files');
+const realtimeRouter = require('./routes/realtime');
 
 function destructiveSeedGuard(req, res, next) {
   if (req.method === 'POST' && String(process.env.ALLOW_DESTRUCTIVE_SEED || '').toLowerCase() !== 'true') {
@@ -132,10 +137,14 @@ function mondayCutoverGuard(req, res, next) {
   return next();
 }
 
+app.use('/api/realtime', realtimeRouter);
 app.use('/api/workspaces', workspacesRouter);
+app.use('/api/boards', boardOperationsRouter);
+app.use('/api/boards', subitemSchemaRouter);
 app.use('/api/boards', viewsRouter);
 app.use('/api/boards', boardsRouter);
 app.use('/api/items', bulkItemsRouter);
+app.use('/api/items', conditionalColumnsRouter);
 app.use('/api/items', itemsRouter);
 app.use('/api/item-ordering', itemOrderingRouter);
 app.use('/api/crew', crewRouter);
@@ -144,6 +153,7 @@ app.use('/api/import/monday', mondayCutoverGuard, mondayImportRouter);
 app.use('/api/backups', backupsRouter);
 app.use('/api/updates', updatesRouter);
 app.use('/api/activity', activityRouter);
+app.use('/api/files', filesRouter);
 
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });

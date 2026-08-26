@@ -1,5 +1,12 @@
 const mongoose = require('mongoose');
 
+const folderSchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  title: { type: String, required: true },
+  order: { type: Number, default: 0 },
+  archived: { type: Boolean, default: false }
+}, { _id: false });
+
 const workspaceSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   mondayId: { type: String, index: true, sparse: true, unique: true },
@@ -11,6 +18,7 @@ const workspaceSchema = new mongoose.Schema({
     default: 'unknown'
   },
   order: { type: Number, default: 0 },
+  folders: { type: [folderSchema], default: [] },
   archived: { type: Boolean, default: false },
   source: { type: String, enum: ['local', 'monday-import'], default: 'local' },
   sourceReadOnly: { type: Boolean, default: false },

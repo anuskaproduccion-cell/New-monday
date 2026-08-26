@@ -31,12 +31,14 @@ const viewSchema = new mongoose.Schema({
 
 const boardSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
+  description: { type: String, default: '' },
   icon: { type: String, default: '📋' },
   order: { type: Number, default: 0 },
 
   // Legacy field kept while v1 data is migrated.
   workspace: { type: String, default: 'GY_GUAYOTA' },
   workspaceRef: { type: mongoose.Schema.Types.ObjectId, ref: 'Workspace', default: null },
+  folderId: { type: String, default: '' },
 
   mondayId: { type: String, index: true, sparse: true, unique: true },
   source: { type: String, enum: ['local', 'monday-import'], default: 'local' },
@@ -45,6 +47,12 @@ const boardSchema = new mongoose.Schema({
   groups: { type: [groupSchema], default: [] },
   columns: { type: [columnSchema], default: [] },
   views: { type: [viewSchema], default: [] },
+
+  // Subitems imported from Monday can use a separate internal board schema.
+  // Once a user customizes that schema in New Monday, a local copy lives here
+  // so the imported/internal Monday structure remains immutable.
+  subitemColumns: { type: [columnSchema], default: [] },
+  subitemSchemaCustomized: { type: Boolean, default: false },
 
   internal: { type: Boolean, default: false },
   technical: { type: Boolean, default: false },

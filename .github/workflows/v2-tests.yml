@@ -42,6 +42,7 @@ jobs:
           node --check routes/backups.js
           node --check routes/updates.js
           node --check routes/activity.js
+          node --check routes/realtime.js
           node --check services/accessControl.js
           node --check services/mondayReadOnlyClient.js
           node --check services/mondayNormalizer.js
@@ -52,6 +53,7 @@ jobs:
           node --check services/excelRecovery.js
           node --check services/driveBackup.js
           node --check services/activityLogger.js
+          node --check services/realtimeHub.js
           node --check services/dependencyEngine.js
           node --check services/formulaEngine.js
           node --check scripts/runIsolatedMondayStaging.js
@@ -72,6 +74,9 @@ jobs:
           node --check public/js/app-v2-range.js
           node --check public/js/app-v2-views.js
           node --check public/js/app-v2-bulk.js
+          node --check public/js/app-v2-accessibility-parity.js
+          node --check public/js/app-v2-virtualization-parity.js
+          node --check public/js/app-v2-realtime-parity.js
       - name: STAGING secret availability preflight
         env:
           STAGING_URI: ${{ secrets.MONGODB_STAGING_URI }}
