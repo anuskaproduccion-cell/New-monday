@@ -34,6 +34,13 @@ function safeContentType(value) {
   return type;
 }
 
+function inlinePreviewAllowed(contentType, filename = '') {
+  const type = safeContentType(contentType);
+  if (type === 'application/pdf' || type.startsWith('image/')) return true;
+  const name = String(filename || '').toLowerCase();
+  return /\.(pdf|png|jpe?g|gif|webp)$/.test(name);
+}
+
 function containsFileReference(value, fileId) {
   if (value === null || value === undefined) return false;
   if (Array.isArray(value)) return value.some(entry => containsFileReference(entry, fileId));
@@ -98,14 +105,17 @@ router.get('/:id/metadata', async (req, res) => {
     if (!id) return res.status(400).json({ error: 'Invalid file id' });
     const file = await bucket().find({ _id: id }).next();
     if (!file) return res.status(404).json({ error: 'File not found' });
+    const mimetype = file.contentType || file.metadata?.originalType || 'application/octet-stream';
     res.json({
       id: String(file._id),
       name: file.filename,
       size: file.length,
-      mimetype: file.contentType || file.metadata?.originalType || 'application/octet-stream',
+      mimetype,
+      previewable: inlinePreviewAllowed(mimetype, file.filename),
       source: file.metadata?.source || 'new-monday',
       uploadedAt: file.uploadDate,
-      url: `/api/files/${file._id}`
+      url: `/api/files/${file._id}`,
+      previewUrl: inlinePreviewAllowed(mimetype, file.filename) ? `/api/files/${file._id}?preview=1` : null
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -122,11 +132,17 @@ router.get('/:id', async (req, res) => {
 
     const filename = safeFilename(file.filename).replace(/"/g, '_');
     const contentType = safeContentType(file.contentType || file.metadata?.originalType);
+    const preview = String(req.query.preview || '') === '1' && inlinePreviewAllowed(contentType, filename);
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Length', String(file.length));
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', `${preview ? 'inline' : 'attachment'}; filename="${filename}"`);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Cache-Control', 'private, max-age=300');
+    if (preview) {
+      // Narrow exception: allow this authenticated, same-origin file response to
+      // render inside New Monday. The application pages themselves remain DENY.
+      res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    }
 
     const stream = storage.openDownloadStream(id);
     stream.on('error', error => {
@@ -162,6 +178,7 @@ router.delete('/:id', async (req, res) => {
 module.exports = router;
 module.exports.safeFilename = safeFilename;
 module.exports.safeContentType = safeContentType;
+module.exports.inlinePreviewAllowed = inlinePreviewAllowed;
 module.exports.containsFileReference = containsFileReference;
 module.exports.fileReferenceCount = fileReferenceCount;
 module.exports.MAX_FILE_BYTES = MAX_FILE_BYTES;
