@@ -19,6 +19,7 @@ const vm = require('vm');
 
   assert.strictEqual(typeof app.realtimeNeedsFullShellRefresh, 'function');
   assert.strictEqual(typeof app.mergeRealtimeChanges, 'function');
+  assert.strictEqual(typeof app.realtimeReadySyncChange, 'function');
   assert.strictEqual(app.realtimeNeedsFullShellRefresh({ board: 'board-1', item: 'item-1', type: 'column_value_changed' }), false);
   assert.strictEqual(app.realtimeNeedsFullShellRefresh({ board: 'board-1', item: 'item-1', type: 'item_updated' }), false);
   assert.strictEqual(app.realtimeNeedsFullShellRefresh({ board: 'board-1', type: 'group_items_updated' }), true);
@@ -47,6 +48,18 @@ const vm = require('vm');
   assert.strictEqual(itemThenItem.item, 'item-2');
   assert.strictEqual(itemThenItem.type, 'item_updated');
   assert.strictEqual(app.realtimeNeedsFullShellRefresh(itemThenItem), false);
+
+  app.currentBoardId = () => 'board-1';
+  assert.strictEqual(app.realtimeReadySyncChange(), null, 'first SSE ready event must not refetch data loaded during init');
+  const reconnectChange = app.realtimeReadySyncChange();
+  assert.strictEqual(reconnectChange.board, 'board-1');
+  assert.strictEqual(reconnectChange.type, 'realtime_reconnected');
+  assert.strictEqual(app.realtimeNeedsFullShellRefresh(reconnectChange), true);
+
+  app.realtimeEverReady = false;
+  app.currentBoardId = () => '';
+  assert.strictEqual(app.realtimeReadySyncChange(), null);
+  assert.strictEqual(app.realtimeReadySyncChange(), null, 'reconnect without an active board has nothing to resynchronize');
 
   let badgeRestores = 0;
   let currentViewRenders = 0;
