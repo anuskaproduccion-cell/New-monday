@@ -23,6 +23,10 @@
       normalizedMethod === 'POST'
       && /^\/api\/items\/[^/?]+\/(?:move|archive|unarchive|restore)(?:\?|$)/.test(normalizedUrl)
     ) return true;
+    if (
+      normalizedMethod === 'POST'
+      && /^\/api\/item-ordering\/reorder(?:\?|$)/.test(normalizedUrl)
+    ) return true;
     if (normalizedMethod === 'DELETE' && /^\/api\/items\/[^/?]+(?:\?|$)/.test(normalizedUrl)) return true;
 
     return false;
