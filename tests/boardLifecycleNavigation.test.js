@@ -61,12 +61,18 @@ function loadApp({ navigateDuringDuplicate = false, failDuplicateSnapshot = fals
         return { ok: true };
       }
       throw new Error(`Unexpected API call: ${url}`);
-    }
+    },
+    openModal() {},
+    closeModal() {},
+    workspaceName(board) { return board?.workspaceRef?._id || ''; },
+    escapeHtml(value) { return String(value ?? ''); },
+    escapeAttr(value) { return String(value ?? ''); }
   };
 
   vm.runInNewContext(source, {
     app,
     console,
+    document: { querySelector() { return null; } },
     encodeURIComponent,
     window: {
       prompt() { return 'A copia'; },
@@ -76,6 +82,9 @@ function loadApp({ navigateDuringDuplicate = false, failDuplicateSnapshot = fals
 
   return {
     app,
+    boardA,
+    boardB,
+    boardC,
     apiCalls,
     toasts,
     selected,
@@ -91,6 +100,8 @@ function loadApp({ navigateDuringDuplicate = false, failDuplicateSnapshot = fals
   assert.ok(source.includes('/api/items/board/${encodeURIComponent(duplicateId)}?includeSubitems=true'), 'duplicate must fetch only its own items');
   assert.strictEqual(source.includes('reloadAll()'), false, 'duplicate lifecycle layer must not use global reloadAll');
   assert.ok(source.includes('boardLifecycleSourceStillActive(sourceBoardId)'), 'lifecycle actions must re-check navigation after awaits');
+  assert.ok(source.includes('const navigationBoardIdAtStart = String(this.currentBoardId?.() || \'\')'), 'restore must freeze navigation context before its PATCH');
+  assert.ok(source.includes('finishArchivedBoardRestore(navigationBoardIdAtStart, restored, boards)'), 'restore must reconcile through navigation-safe helper');
 
   {
     const runtime = loadApp();
@@ -144,6 +155,30 @@ function loadApp({ navigateDuringDuplicate = false, failDuplicateSnapshot = fals
     assert.deepStrictEqual(runtime.selected, ['board-b'], 'archiving the active board should keep the existing next-board behavior');
     assert.strictEqual(runtime.app.currentBoard._id, 'board-b');
     assert.ok(!runtime.app.boards.some(board => board._id === 'board-a'));
+  }
+
+  {
+    const runtime = loadApp();
+    const restored = { _id: 'board-restored', name: 'Restored', archived: false };
+    const boards = [runtime.boardA, runtime.boardB, runtime.boardC, restored];
+    const selected = await runtime.app.finishArchivedBoardRestore('board-a', restored, boards);
+
+    assert.strictEqual(selected, true, 'restore should open restored board when navigation context did not change');
+    assert.deepStrictEqual(runtime.selected, ['board-restored']);
+    assert.strictEqual(runtime.app.currentBoard._id, 'board-restored');
+  }
+
+  {
+    const runtime = loadApp();
+    const restored = { _id: 'board-restored', name: 'Restored', archived: false };
+    const boards = [runtime.boardA, runtime.boardB, runtime.boardC, restored];
+    runtime.app.currentBoard = runtime.boardB;
+    const selected = await runtime.app.finishArchivedBoardRestore('board-a', restored, boards);
+
+    assert.strictEqual(selected, false, 'restore must respect navigation to another board while request was in flight');
+    assert.deepStrictEqual(runtime.selected, []);
+    assert.strictEqual(runtime.app.currentBoard._id, 'board-b');
+    assert.ok(runtime.app.boards.some(board => board._id === 'board-restored'), 'restored board must still update board cache/sidebar');
   }
 
   console.log('board lifecycle navigation tests passed');
