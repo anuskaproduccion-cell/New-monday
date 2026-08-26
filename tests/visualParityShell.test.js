@@ -34,7 +34,11 @@ expectedTokens.forEach(token => assert.ok(css.includes(token), `missing visual t
   '.world-clock-picker,',
   '.relation-parity-picker,',
   '.updates-drawer{',
-  '.update-card{'
+  '.update-card{',
+  '.update-rich-toolbar{',
+  '.mention-picker{',
+  '.update-attachment{',
+  '.dynamic-cell[data-save-state]::after,.element-cell[data-save-state]::after{'
 ].forEach(selector => assert.ok(componentCss.includes(selector), `missing visual component selector ${selector}`));
 
 [
@@ -66,6 +70,9 @@ assert.ok(
   html.indexOf(viewLink) > html.indexOf(componentLink),
   'special-view visual layer must load after picker/updates parity styles'
 );
+
+assert.ok(componentCss.includes('@media(max-width:900px)'), 'visual component layer must include narrow desktop/tablet adaptation');
+assert.ok(componentCss.includes('@media(max-width:720px)'), 'visual component layer must include mobile drawer adaptation');
 
 assert.ok(
   !/--nm-row-height:\s*(?!38px)/.test(css),
