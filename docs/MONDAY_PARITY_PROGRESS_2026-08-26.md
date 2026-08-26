@@ -34,6 +34,7 @@ Este documento complementa `MONDAY_PARITY_AUDIT_2026-08-25.md`. La primera gran 
 - [x] **Preferencia de movimiento reducido**: animaciones/transiciones prescindibles se desactivan cuando el sistema solicita `prefers-reduced-motion`.
 - [x] **Modales y menús**: foco inicial, trampa de foco en diálogos, Escape, restauración al ancla, roles `dialog/menu/menuitem` y navegación con flechas/Inicio/Fin.
 - [x] **Sidebar por teclado**: navegación jerárquica con flechas y alternativa `Shift+F10` al drag & drop para mover tableros entre carpetas.
+- [x] **Ciclo de vida de popovers anclados**: los menús/pickers movidos al `body` quedan registrados mientras están abiertos. Antes de sustituir una vista por realtime se cierran únicamente los que están anclados dentro de esa vista; un menú de header/sidebar se conserva. Los anchors desconectados también se limpian, junto con sus listeners.
 
 ## Rendimiento / colaboración · cerrada en código
 
@@ -81,11 +82,11 @@ Por tanto, lo pendiente ya no es otra gran fase de reconstrucción funcional. La
 
 ## Validación
 
-El HEAD funcional `4ea2029d0c282a46f4156b7e004f64e09dd12e46` quedó verde en ambas puertas de CI el 2026-08-26:
+El HEAD funcional `8bbec3f8db66a45ba9c23909abf51607ed4a7a23` quedó verde en ambas puertas de CI el 2026-08-26:
 
-1. `New Monday v2 validation`, run `32980916178`: `npm test`, audit de dependencias y syntax checks: **PASS**; STAGING/recovery/auditoría publicada no se ejecutaron sin disparador explícito.
-2. `New Monday group and timeline parity validation`, run `32980915942`: `npm test`, `npm audit --omit=dev --audit-level=high` y syntax checks específicos: **PASS**.
+1. `New Monday v2 validation`, run `32981569825` / #797: **PASS**.
+2. `New Monday group and timeline parity validation`, run `32981569833` / #631: **PASS**.
 
-El HEAD inmediatamente anterior `5caf26e1aaa8715bc731a5236a6adb42de9e8f19`, que endurece las colas realtime separadas por tablero relacionado y el orden de carga del bridge Relation/Mirror, también pasó ambas puertas (`32980523678` y `32980523692`).
+Este HEAD incluye el cierre selectivo de popovers anclados antes del repaint realtime. El checkpoint `4ea2029d0c282a46f4156b7e004f64e09dd12e46` validó previamente la propagación integral del origen (`32980916178` y `32980915942`) y `5caf26e1aaa8715bc731a5236a6adb42de9e8f19` validó las colas cross-board Relation/Mirror (`32980523678` y `32980523692`).
 
-La cobertura incluye, entre otros, realtime cliente/servidor, Relation/Mirror cross-board y multi-board, coalescencia y latencia de ráfagas, contexto de origen atravesando persistencia de actividad, política de eco propio segura, tracking de mutaciones, virtualización por alturas, teclado/rangos, modales, menús y sidebar.
+La cobertura incluye, entre otros, realtime cliente/servidor, Relation/Mirror cross-board y multi-board, coalescencia y latencia de ráfagas, contexto de origen atravesando persistencia de actividad, política de eco propio segura, ciclo de vida de popovers, tracking de mutaciones, virtualización por alturas, teclado/rangos, modales, menús y sidebar.
