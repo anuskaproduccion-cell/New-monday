@@ -7,6 +7,7 @@
   app.realtimePendingChange = null;
   app.realtimeRefreshing = false;
   app.realtimeLastRefreshAt = 0;
+  app.realtimeEverReady = false;
 
   app.ensureRealtimeBadge = function ensureRealtimeBadge() {
     const actions = document.querySelector('.header-actions');
@@ -56,6 +57,19 @@
       field: fullChange.field || '',
       message: fullChange.message || incoming.message || current.message || '',
       meta: fullChange.meta || incoming.meta || current.meta || {}
+    };
+  };
+
+  app.realtimeReadySyncChange = function realtimeReadySyncChange() {
+    const wasReady = this.realtimeEverReady;
+    this.realtimeEverReady = true;
+    if (!wasReady) return null;
+    const boardId = String(this.currentBoardId?.() || '');
+    if (!boardId) return null;
+    return {
+      board: boardId,
+      type: 'realtime_reconnected',
+      message: 'Conexión en vivo restablecida'
     };
   };
 
@@ -161,7 +175,11 @@
 
     const source = new EventSource('/api/realtime/stream');
     this.realtimeSource = source;
-    source.addEventListener('ready', () => this.setRealtimeState('live', 'En vivo'));
+    source.addEventListener('ready', () => {
+      const syncChange = this.realtimeReadySyncChange();
+      this.setRealtimeState('live', 'En vivo');
+      if (syncChange) this.scheduleRealtimeRefresh(syncChange, 100);
+    });
     source.addEventListener('change', event => {
       let change = null;
       try { change = JSON.parse(event.data || '{}'); } catch { return; }
@@ -176,6 +194,7 @@
 
   app.init = async function initWithRealtime() {
     await baseInit();
+    this.realtimeLastRefreshAt = Date.now();
     this.ensureRealtimeBadge();
     this.connectRealtime();
 
