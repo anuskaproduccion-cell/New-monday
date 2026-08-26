@@ -43,6 +43,7 @@ jobs:
           node --check public/js/app-v2-updates-parity.js
           node --check public/js/app-v2-updates-files-parity.js
           node --check public/js/app-v2-mentions-parity.js
+          node --check public/js/app-v2-updates-rich-parity.js
           node --check public/js/app-v2-dnd.js
           node --check public/js/app-v2-columns.js
           node --check public/js/app-v2-column-parity.js
