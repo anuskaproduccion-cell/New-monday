@@ -11,17 +11,25 @@
   };
 
   app.loadBoardUpdateCounts = async function loadBoardUpdateCounts(boardId) {
-    this.updateCounts = new Map();
-    if (!boardId) return;
+    const sourceBoardId = String(boardId || '');
+    if (!sourceBoardId) return false;
+
     try {
-      const updates = await this.api(`/api/updates/board/${encodeURIComponent(boardId)}`);
+      const updates = await this.api(`/api/updates/board/${encodeURIComponent(sourceBoardId)}`);
+      const counts = new Map();
       updates.forEach(update => {
         const itemId = String(update.item?._id || update.item || '');
         if (!itemId) return;
-        this.updateCounts.set(itemId, (this.updateCounts.get(itemId) || 0) + this.updateThreadCount(update));
+        counts.set(itemId, (counts.get(itemId) || 0) + this.updateThreadCount(update));
       });
+
+      if (String(this.currentBoardId?.() || '') !== sourceBoardId) return false;
+      this.updateCounts = counts;
+      return true;
     } catch (err) {
+      if (String(this.currentBoardId?.() || '') === sourceBoardId) this.updateCounts = new Map();
       console.warn('Could not load update counts:', err.message);
+      return false;
     }
   };
 
@@ -45,8 +53,14 @@
   };
 
   app.selectBoard = async function selectBoardWithUpdateCounts(board) {
-    await this.loadBoardUpdateCounts(board?._id);
-    return originalSelectBoard(board);
+    const boardId = String(board?._id || '');
+    this.updateCounts = new Map();
+    const result = await originalSelectBoard(board);
+    if (!boardId) return result;
+
+    const applied = await this.loadBoardUpdateCounts(boardId);
+    if (applied && String(this.currentBoardId?.() || '') === boardId) this.renderCurrentView?.();
+    return result;
   };
 
   app.itemRowHtml = function itemRowHtmlWithUpdatesButton(item, group, columns) {
