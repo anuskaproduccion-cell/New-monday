@@ -30,13 +30,16 @@ vm.runInNewContext(virtualizationSource, {
 assert.strictEqual(typeof virtualizationApp.ensureVirtualBoardScrollListener, 'function');
 assert.strictEqual(typeof virtualizationApp.unbindVirtualBoardScroll, 'function');
 assert.strictEqual(typeof virtualizationApp.virtualRowCountForGroup, 'function');
+assert.strictEqual(typeof virtualizationApp.virtualEstimatedSpanHeight, 'function');
+assert.strictEqual(typeof virtualizationApp.virtualIndexForOffset, 'function');
+assert.strictEqual(typeof virtualizationApp.measureVirtualExpandedRows, 'function');
 
 let addCount = 0;
 let removeCount = 0;
 const board = {
   dataset: {},
   querySelectorAll(selector) {
-    if (selector === '.item-row[data-item-id]') return [{}, {}, {}];
+    if (selector === '.item-row[data-item-id]') return [];
     if (selector === '.group-section[data-group-id]') return [];
     return [];
   }
@@ -73,6 +76,20 @@ assert.strictEqual(virtualizationApp.virtualScrollHandler, null);
 
 virtualizationApp.virtualBoardRanges.set('group-a', { start: 120, end: 240, total: 500 });
 assert.strictEqual(virtualizationApp.virtualRowCountForGroup('group-a'), 501, 'ARIA rowcount includes the header row and the full virtual group size');
+
+virtualizationApp.virtualGroupItemIds.set('group-a', ['item-a', 'item-b', 'item-c']);
+virtualizationApp.virtualItemExtraHeights.set('item-b', 80);
+assert.strictEqual(
+  virtualizationApp.virtualEstimatedSpanHeight('group-a', 0, 3),
+  200,
+  'virtual spacers must include measured expanded content below parent rows'
+);
+assert.strictEqual(virtualizationApp.virtualIndexForOffset('group-a', 39), 0);
+assert.strictEqual(virtualizationApp.virtualIndexForOffset('group-a', 40), 1);
+assert.strictEqual(virtualizationApp.virtualIndexForOffset('group-a', 159), 1, 'expanded item height must occupy its full measured scroll interval');
+assert.strictEqual(virtualizationApp.virtualIndexForOffset('group-a', 160), 2);
+const spacer = virtualizationApp.virtualSpacerRowHtml(3, 'group-a', 'top', [], 0, 3);
+assert.ok(spacer.includes('height:200px'), 'spacer HTML must use measured model height instead of count × fixed row height');
 
 const accessibilitySource = fs.readFileSync(
   path.join(__dirname, '..', 'public', 'js', 'app-v2-accessibility-parity.js'),
