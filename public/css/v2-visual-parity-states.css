@@ -8,6 +8,7 @@
 .workspace-switcher:focus-visible,
 .sidebar-nav-item:focus-visible,
 .sidebar-favorite-item:focus-visible,
+.sidebar-recent-item:focus-visible,
 .sidebar-phase-header:focus-visible,
 .sidebar-folder-menu-button:focus-visible,
 .sidebar-folder-toolbar button:focus-visible,
@@ -38,6 +39,60 @@
   background-color:#f8f7ff!important;
 }
 
+/* Hierarchical sidebar: boards, favorites, recents, phases and folders share one state language. */
+.sidebar-nav-item,
+.sidebar-favorite-item,
+.sidebar-recent-item{
+  border-radius:var(--nm-radius-control)!important;
+  opacity:.86!important;
+}
+.sidebar-nav-item:hover,
+.sidebar-favorite-item:hover,
+.sidebar-recent-item:hover{
+  background:rgba(255,255,255,.08)!important;
+  opacity:1!important;
+}
+.sidebar-nav-item.active,
+.sidebar-favorite-item.active,
+.sidebar-recent-item.active{
+  background:rgba(97,97,255,.72)!important;
+  box-shadow:inset 2px 0 rgba(255,255,255,.8)!important;
+  opacity:1!important;
+}
+.sidebar-phase-header{
+  border-radius:var(--nm-radius-control)!important;
+  color:rgba(255,255,255,.72)!important;
+}
+.sidebar-phase-header:hover{
+  background:rgba(255,255,255,.07)!important;
+  color:#fff!important;
+}
+.sidebar-folder{
+  border-color:rgba(255,255,255,.07)!important;
+  border-radius:var(--nm-radius-control)!important;
+}
+.sidebar-folder.is-drop-target{
+  border-color:var(--nm-primary)!important;
+  background:rgba(97,97,255,.14)!important;
+}
+.sidebar-folder-toolbar button,
+.sidebar-folder-menu-button{
+  border-radius:var(--nm-radius-control)!important;
+}
+.sidebar-folder-toolbar button:hover,
+.sidebar-folder-menu-button:hover{
+  background:rgba(255,255,255,.10)!important;
+  color:#fff!important;
+}
+.sidebar-folder-toolbar span.is-drop-target{
+  border-color:var(--nm-primary)!important;
+  background:rgba(97,97,255,.16)!important;
+  color:#fff!important;
+}
+.sidebar-recent-copy strong{font-weight:500!important}
+.sidebar-recent-copy small{color:rgba(255,255,255,.52)!important}
+.sidebar-recent-item.active .sidebar-recent-copy small{color:rgba(255,255,255,.76)!important}
+
 /* Pressed/active feedback without moving layout. */
 .button:active:not(:disabled),
 .view-tab:active,
@@ -45,6 +100,10 @@
 .board-menu-trigger:active,
 .sidebar-nav-item:active,
 .sidebar-favorite-item:active,
+.sidebar-recent-item:active,
+.sidebar-phase-header:active,
+.sidebar-folder-menu-button:active,
+.sidebar-folder-toolbar button:active,
 .menu-button:active,
 .column-menu-button:active,
 .floating-menu button:active:not(:disabled),
