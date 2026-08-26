@@ -45,7 +45,7 @@ Este documento complementa `MONDAY_PARITY_AUDIT_2026-08-25.md`. La primera gran 
 - [x] **Refresco remoto dirigido**: cambios simples pueden leer solo el item afectado; cascadas, bulk, ordering y cambios estructurales conservan refrescos más amplios por seguridad.
 - [x] **Coalescencia de ráfagas**: cambios rápidos no pierden items, conservan siempre el evento de mayor alcance y tienen un límite de latencia aproximado de 1,2 s salvo interacción local activa.
 - [x] **Coordinación con mutaciones locales**: realtime se aplaza mientras hay `POST/PATCH/PUT/DELETE` local en vuelo, eliminando carreras entre blur/guardado y refresco remoto.
-- [x] **Supresión de eco propio solo en mutaciones eco-seguras**: cada pestaña usa un identificador efímero compartido entre su API y su stream SSE. Actualmente se aplica al PATCH condicional de celda, cuya respuesta ya actualiza completamente el estado local. Las demás mutaciones conservan su eco SSE hasta que sus efectos secundarios locales se auditen explícitamente como seguros. El identificador no es autenticación, no se persiste y no forma parte del payload de cambio.
+- [x] **Supresión de eco propio solo en mutaciones eco-seguras**: cada pestaña usa un identificador efímero compartido entre su API y su stream SSE. La política está auditada para el PATCH condicional de celda, crear item, mover item, archivar, desarchivar, restaurar y enviar un item a papelera. Duplicar y reordenar conservan su eco porque afectan a otros items además del principal. El identificador no es autenticación, no se persiste y no forma parte del payload de cambio.
 - [x] **Reconexión segura**: al restablecer SSE se hace una resincronización para recuperar cambios que pudieran haberse producido durante la desconexión.
 - [x] **Estado de conexión visible**: indicador En vivo / Reconectando / Sin conexión y revalidación al volver a una pestaña tras inactividad.
 
@@ -79,7 +79,7 @@ Por tanto, lo pendiente ya no es otra gran fase de reconstrucción funcional. La
 
 ## Validación
 
-El HEAD funcional anterior a esta actualización documental quedó verde en ambas puertas de CI el 2026-08-26:
+El HEAD funcional `cee2b9518a8782bc555941344d35abf66ffed669` quedó verde en ambas puertas de CI el 2026-08-26:
 
 1. `New Monday v2 validation`: `npm test`, audit de dependencias y syntax checks: **PASS**; STAGING/recovery/auditoría publicada no se ejecutaron sin disparador explícito.
 2. `New Monday group and timeline parity validation`: `npm test`, `npm audit --omit=dev --audit-level=high` y syntax checks específicos: **PASS**.
