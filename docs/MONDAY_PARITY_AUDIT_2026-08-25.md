@@ -75,12 +75,15 @@ Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia 
 - [x] Dropdown: chips + selector múltiple.
 - [x] Subitems: abrir/crear inline y editar sus celdas.
 - [x] Subitems: resolver de forma local el tablero interno `Subelementos de …` y usar su esquema real para mapear IDs/tipos de columna cuando difieren del padre, sin copiar ni mutar el esquema importado.
+- [x] Subitems: copia local administrable para crear, renombrar, describir, ocultar, reordenar y retirar columnas sin mutar Monday.
 - [x] Reloj mundial: selector buscable de zona/ciudad, formato 12/24h, UTC offset y horario laboral.
 - [x] Board Relation: picker buscable, uno o varios elementos según configuración y chips de vínculos.
+- [x] Board Relation/Mirror multi-board: relaciones entre varios tableros y columna reflejada configurable por tablero.
 - [x] Mirror: presentación local según el tipo reflejado en vez de texto plano cuando la semántica está disponible.
 - [x] Files Column: varios archivos, drag & drop, subida desde ordenador, enlace externo, descarga y retirada local.
 - [x] Adjuntos locales persistentes en MongoDB GridFS; no dependen del filesystem efímero de Render.
 - [x] GridFS protege archivos compartidos: no elimina físicamente un archivo mientras siga referenciado por Items/Updates, necesario para duplicaciones seguras.
+- [x] Preview inline seguro de imágenes/PDF y revisión/limpieza explícita de archivos huérfanos con revalidación antes de borrar.
 - [x] Email y Enlace: representación compacta y editor emergente en vez de inputs permanentes.
 
 ### Vistas
@@ -95,6 +98,7 @@ Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia 
 - [x] Files Gallery local en cuadrícula/lista consolidando Files Column y adjuntos de Updates/respuestas.
 - [x] Menú `⌄` directamente en cada pestaña guardada para abrir, renombrar, duplicar y eliminar.
 - [x] Menú de pestaña accesible también por menú contextual / `Shift+F10`.
+- [x] Overflow responsivo con menú `Más` cuando no caben todas las vistas, preservando visible la activa.
 
 ### Gantt
 
@@ -107,7 +111,7 @@ Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia 
 - [x] Resaltado de fila al hover.
 - [x] Respeto de `show_weekends:false` cuando la vista importada lo configura.
 - [x] Zoom Día / Semana / Mes.
-- [x] Agrupación visual por grupos.
+- [x] Agrupación configurable por Grupo / Estado / Persona / Sin agrupación y campos laterales configurables.
 - [x] Selector de color de barras por Grupo o por primera columna Estado disponible, conservado como preferencia local.
 
 ### Tablero / navegación
@@ -117,7 +121,9 @@ Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia 
 - [x] Estrella de favorito funcional y sección Favoritos en el sidebar.
 - [x] Sección Recientes en el sidebar, recordando los últimos tableros abiertos localmente.
 - [x] Sidebar agrupado por fases reconocibles de producción (Pre/Producción, Rodaje, Edición, Post, Otros), con secciones contraíbles locales.
+- [x] Carpetas persistentes por workspace, jerarquía manual, drag & drop de tableros y vuelta a organización automática.
 - [x] Menú `⋯` del tablero con renombrar, descripción, favorito, copiar enlace, información, duplicar, actividad y archivo.
+- [x] Mover tablero entre workspaces conservando su contenido y limpiando la carpeta anterior.
 - [x] Duplicación segura del tablero con grupos, columnas, vistas, items y subitems; la copia elimina IDs de Monday y se convierte en contenido local de New Monday.
 - [x] Deep-link por tablero mediante `?board=<id>`.
 - [x] Archivar tablero localmente sin borrar elementos.
@@ -130,6 +136,10 @@ Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia 
 - [x] Movimiento de elemento mediante picker de grupos con búsqueda y señalización del grupo actual.
 - [x] Popovers y menús se reposicionan durante scroll/resize y se cierran si el ancla sale de pantalla.
 - [x] Navegación por teclado común en menús/selectores emergentes: flechas, Inicio/Fin y Escape con retorno de foco al ancla.
+- [x] Grid accesible con roving tabindex, `aria-selected`, focus visible y labels contextuales de celdas.
+- [x] Navegación ampliada con Inicio/Fin, Ctrl/Cmd+Inicio/Fin, Page Up/Page Down, Enter/F2, Escape y Espacio para selección de fila.
+- [x] Panel de ayuda de atajos con `Ctrl/Cmd+/` o `?`, live region y soporte `prefers-reduced-motion`.
+- [x] Undo/redo local de celdas con comprobación optimista de `updatedAt` para evitar sobrescrituras concurrentes silenciosas.
 
 ### Colaboración y continuidad
 
@@ -138,33 +148,26 @@ Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia 
 - [x] Indicador/conteo de Updates + respuestas directamente en el item.
 - [x] Adjuntos en Updates y respuestas usando el mismo almacenamiento GridFS.
 - [x] `@menciones` locales con picker restringido a personas conocidas y resaltado visual; no se presentan como notificaciones externas.
+- [x] Editor enriquecido local de Updates con formato, listas, citas, enlaces y Ctrl/Cmd+Enter.
 - [x] Actividad/historial local.
 - [x] Archivo, Papelera y restauración de elementos.
 - [x] Exportación Excel, preview de recuperación, conflictos y recuperación validada en staging.
+- [x] Virtualización/render parcial para tableros grandes: ventana de filas por grupo, spacers equivalentes y navegación compatible con filas fuera del DOM.
+- [x] Sincronización entre sesiones mediante SSE same-origin autenticado y refresco del tablero afectado, diferido mientras existe una interacción de edición/drag/resize.
+- [x] Indicador visible En vivo / Reconectando / Sin conexión y revalidación al volver a la pestaña.
 
 ## Diferencias todavía visibles / funcionales
 
-### Prioridad alta
+### Decisiones de producto / escalabilidad
 
-- [ ] Gantt: configuración más completa de agrupación/columnas y evaluar critical path / baseline solo si aportan valor real a los tableros de producción.
-- [ ] Sidebar/workspace: carpetas reales/persistentes y jerarquía manual cuando la nomenclatura del tablero no permita inferir una fase.
-- [ ] Subitems: completar administración del esquema local propio (crear/reordenar/configurar columnas de subitems) más allá de mapear correctamente el esquema Monday importado.
-- [ ] Undo/redo local para ediciones recientes con seguridad frente a cambios concurrentes.
+- [ ] Gantt: evaluar `critical path / baseline` solo si aportan valor real a los tableros de producción.
+- [ ] Permisos locales por usuario/rol solo si el proyecto adopta un modelo real de usuarios; el acceso actual sigue siendo por sesión/contraseña.
+- [ ] Si Render se escala a varias instancias, sustituir el hub SSE en memoria por un bus compartido (Redis/pub-sub, MongoDB Change Streams u otro) para propagar eventos entre procesos.
+- [ ] Medir con tableros reales de varios miles de elementos y ajustar umbral/tamaño de ventana de virtualización si esa escala se vuelve habitual.
 
-### Prioridad media
+### Validación previa a publicación
 
-- [ ] Files: preview seguro inline de imágenes/PDF y administración/limpieza explícita de archivos huérfanos.
-- [ ] Updates: editor enriquecido; las `@menciones` ya existen localmente pero no generan notificaciones externas.
-- [ ] Overflow fino de vistas cuando existen muchas vistas operativas reales; el desplazamiento horizontal básico ya está implementado.
-- [ ] Board Relation/Mirror: multi-board mirroring completo cuando una columna conecte varios tableros a la vez.
-- [ ] Menú de tablero: mover tablero entre workspaces y permisos locales si el modelo de usuarios lo requiere.
-
-### Paridad de interacción, rendimiento y accesibilidad
-
-- [ ] Selección/hover/focus de filas y celdas todavía puede acercarse más a los microcomportamientos de Monday.
-- [ ] Menú/ayuda de atajos equivalente a la experiencia de hoja de cálculo de Monday.
-- [ ] Virtualización/render parcial para tableros grandes, evitando rerender completo tras cada cambio.
-- [ ] Sincronización en tiempo real entre dos sesiones de New Monday cuando varias personas editen simultáneamente.
+- [ ] Revisión visual integral en navegador real de focus, teclado, virtualización, Gantt, popovers, Updates y sincronización entre dos sesiones antes de fusionar.
 
 ## Hallazgos oficiales que guían la siguiente fase
 
@@ -182,9 +185,9 @@ Esquema real observado: Name, Person, Status, Cronograma, Fórmula, Dependencia 
 ## Estado de validación
 
 Lote validado el 2026-08-26:
-- `npm test`: PASS, incluyendo resolución de esquema de Subitems, protección de referencias GridFS y duplicación local de tableros.
+- `npm test`: PASS, incluyendo resolución de esquema de Subitems, protección de referencias GridFS, duplicación local de tableros y hub realtime.
 - `npm audit --omit=dev --audit-level=high`: PASS.
-- syntax checks: PASS.
+- syntax checks: PASS, incluyendo accesibilidad, virtualización, realtime, ruta SSE y hub de eventos.
 - workflow general v2: PASS.
 - workflow específico de paridad: PASS.
 - STAGING/recovery no se ejecutan salvo disparador explícito.
