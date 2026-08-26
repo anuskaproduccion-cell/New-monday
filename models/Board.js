@@ -38,6 +38,7 @@ const boardSchema = new mongoose.Schema({
   // Legacy field kept while v1 data is migrated.
   workspace: { type: String, default: 'GY_GUAYOTA' },
   workspaceRef: { type: mongoose.Schema.Types.ObjectId, ref: 'Workspace', default: null },
+  folderId: { type: String, default: '' },
 
   mondayId: { type: String, index: true, sparse: true, unique: true },
   source: { type: String, enum: ['local', 'monday-import'], default: 'local' },
