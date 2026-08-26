@@ -47,6 +47,14 @@
     if (root) this.closePositionedMenusForRoot(root);
   };
 
+  app.realtimeLocalMutationVersion = function realtimeLocalMutationVersion() {
+    return Number(this.localMutationVersion?.() || 0);
+  };
+
+  app.realtimeLocalMutationChanged = function realtimeLocalMutationChanged(version) {
+    return this.realtimeLocalMutationVersion() !== Number(version || 0);
+  };
+
   app.realtimeIsGlobalChange = function realtimeIsGlobalChange(change = {}) {
     const scope = String(change.scope || '').toLowerCase();
     return scope === 'global' || scope === 'workspace';
@@ -122,6 +130,34 @@
     return Boolean(boardId && boardId === String(this.currentBoardId?.() || ''));
   };
 
+  app.scheduleRealtimeMutationOverlapRevalidation = function scheduleRealtimeMutationOverlapRevalidation(change = {}) {
+    if (this.realtimeIsGlobalChange(change)) {
+      this.scheduleRealtimeRefresh({
+        scope: 'global',
+        board: null,
+        item: null,
+        type: 'local_mutation_overlap_revalidate',
+        message: 'Revalidación tras una escritura local concurrente',
+        meta: { localMutationOverlap: true }
+      }, 75);
+      return;
+    }
+
+    const boardId = String(change.board || this.currentBoardId?.() || '');
+    if (!boardId || boardId !== String(this.currentBoardId?.() || '')) return;
+    const fullShellRefresh = this.realtimeNeedsFullShellRefresh(change);
+    this.scheduleRealtimeRefresh({
+      scope: 'board',
+      board: boardId,
+      item: null,
+      type: 'local_mutation_overlap_revalidate',
+      message: 'Revalidación tras una escritura local concurrente',
+      meta: fullShellRefresh
+        ? { localMutationOverlap: true }
+        : { localMutationOverlap: true, itemsOnly: true }
+    }, 75);
+  };
+
   app.scheduleRealtimeRefresh = function scheduleRealtimeRefresh(change = {}, delay = 350) {
     if (!this.realtimeIsGlobalChange(change)) {
       const boardId = String(change.board || '');
@@ -156,8 +192,14 @@
     try {
       const previousBoardId = String(this.currentBoardId?.() || '');
       const previousWorkspaceKey = String(this.workspaceKey?.(this.currentWorkspace) || '');
+      const mutationVersionBeforeRefresh = this.realtimeLocalMutationVersion();
 
       await this.reloadAll();
+
+      if (this.realtimeLocalMutationChanged(mutationVersionBeforeRefresh)) {
+        this.scheduleRealtimeMutationOverlapRevalidation({ scope: 'global' });
+        return;
+      }
 
       const nextBoard = previousBoardId
         ? this.boards.find(board => String(board._id) === previousBoardId && !board.archived)
@@ -222,6 +264,7 @@
 
     this.realtimeRefreshing = true;
     try {
+      const mutationVersionBeforeRefresh = this.realtimeLocalMutationVersion();
       const fullShellRefresh = this.realtimeNeedsFullShellRefresh(change);
       const itemRefreshMode = fullShellRefresh ? 'board' : this.realtimeItemRefreshMode(change);
       let board = this.currentBoard;
@@ -240,9 +283,18 @@
       }
 
       if (String(this.currentBoardId() || '') !== boardId) return;
+      if (this.realtimeLocalMutationChanged(mutationVersionBeforeRefresh)) {
+        this.scheduleRealtimeMutationOverlapRevalidation(change);
+        return;
+      }
       if (fullShellRefresh && board?.archived) {
+        const archiveReloadMutationVersion = this.realtimeLocalMutationVersion();
         this.closeRealtimeMenusForRefresh(true);
         await this.reloadAll();
+        if (this.realtimeLocalMutationChanged(archiveReloadMutationVersion)) {
+          this.scheduleRealtimeMutationOverlapRevalidation({ scope: 'global' });
+          return;
+        }
         this.renderWorkspaceSwitcher();
         this.renderSidebar();
         const next = this.visibleBoards()[0];
