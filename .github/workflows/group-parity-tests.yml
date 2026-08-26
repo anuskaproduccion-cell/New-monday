@@ -61,6 +61,7 @@ jobs:
           node --check public/js/app-v2-board-header-parity.js
           node --check public/js/app-v2-board-advanced-parity.js
           node --check public/js/app-v2-board-archive-parity.js
+          node --check public/js/app-v2-board-workspace-parity.js
           node --check public/js/app-v2-sidebar-parity.js
           node --check public/js/app-v2-sidebar-hierarchy-parity.js
           node --check public/js/app-v2-item-menu-parity.js
