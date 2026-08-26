@@ -45,7 +45,7 @@ Este documento complementa `MONDAY_PARITY_AUDIT_2026-08-25.md`. La primera gran 
 - [x] **Refresco remoto dirigido**: cambios simples pueden leer solo el item afectado; cascadas, bulk, ordering y cambios estructurales conservan refrescos más amplios por seguridad.
 - [x] **Coalescencia de ráfagas**: cambios rápidos no pierden items, conservan siempre el evento de mayor alcance y tienen un límite de latencia aproximado de 1,2 s salvo interacción local activa.
 - [x] **Coordinación con mutaciones locales**: realtime se aplaza mientras hay `POST/PATCH/PUT/DELETE` local en vuelo, eliminando carreras entre blur/guardado y refresco remoto.
-- [x] **Sin eco propio**: cada pestaña usa un identificador efímero para que su evento SSE no se reenvíe a la misma conexión que originó la mutación; las demás sesiones sí lo reciben. Ese identificador no es autenticación, no se persiste y no forma parte del payload de cambio.
+- [x] **Supresión de eco propio solo en mutaciones eco-seguras**: cada pestaña usa un identificador efímero compartido entre su API y su stream SSE. Actualmente se aplica al PATCH condicional de celda, cuya respuesta ya actualiza completamente el estado local. Las demás mutaciones conservan su eco SSE hasta que sus efectos secundarios locales se auditen explícitamente como seguros. El identificador no es autenticación, no se persiste y no forma parte del payload de cambio.
 - [x] **Reconexión segura**: al restablecer SSE se hace una resincronización para recuperar cambios que pudieran haberse producido durante la desconexión.
 - [x] **Estado de conexión visible**: indicador En vivo / Reconectando / Sin conexión y revalidación al volver a una pestaña tras inactividad.
 
@@ -84,4 +84,4 @@ El HEAD funcional anterior a esta actualización documental quedó verde en amba
 1. `New Monday v2 validation`: `npm test`, audit de dependencias y syntax checks: **PASS**; STAGING/recovery/auditoría publicada no se ejecutaron sin disparador explícito.
 2. `New Monday group and timeline parity validation`: `npm test`, `npm audit --omit=dev --audit-level=high` y syntax checks específicos: **PASS**.
 
-La cobertura incluye, entre otros, realtime cliente/servidor, coalescencia y latencia de ráfagas, contexto de origen, exclusión de eco propio, tracking de mutaciones, virtualización por alturas, teclado/rangos, modales, menús y sidebar.
+La cobertura incluye, entre otros, realtime cliente/servidor, coalescencia y latencia de ráfagas, contexto de origen, política de eco propio segura, tracking de mutaciones, virtualización por alturas, teclado/rangos, modales, menús y sidebar.
