@@ -10,8 +10,22 @@
   })());
 
   app.realtimeOwnEchoSafeRequest = function realtimeOwnEchoSafeRequest(url, method = 'GET') {
-    if (String(method || 'GET').toUpperCase() !== 'PATCH') return false;
-    return /^\/api\/items\/[^/?]+\/columns\/[^/?]+\/conditional(?:\?|$)/.test(String(url || ''));
+    const normalizedMethod = String(method || 'GET').toUpperCase();
+    const normalizedUrl = String(url || '');
+
+    if (
+      normalizedMethod === 'PATCH'
+      && /^\/api\/items\/[^/?]+\/columns\/[^/?]+\/conditional(?:\?|$)/.test(normalizedUrl)
+    ) return true;
+
+    if (normalizedMethod === 'POST' && /^\/api\/items(?:\?|$)/.test(normalizedUrl)) return true;
+    if (
+      normalizedMethod === 'POST'
+      && /^\/api\/items\/[^/?]+\/(?:move|archive|unarchive|restore)(?:\?|$)/.test(normalizedUrl)
+    ) return true;
+    if (normalizedMethod === 'DELETE' && /^\/api\/items\/[^/?]+(?:\?|$)/.test(normalizedUrl)) return true;
+
+    return false;
   };
 
   app.api = async function apiWithLocalMutationTracking(url, options = {}) {
