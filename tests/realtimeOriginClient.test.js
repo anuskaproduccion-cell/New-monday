@@ -66,18 +66,41 @@ assert.ok(listeners.has('ready'));
 assert.ok(listeners.has('change'));
 
 (async () => {
-  await app.api('/api/items/item-1/columns/status/conditional', { method: 'PATCH', body: '{}' });
-  assert.strictEqual(
-    apiOptions.headers['X-New-Monday-Client-Id'],
-    app.clientSessionId,
-    'conditional cell PATCH is echo-safe and must carry the ephemeral origin id'
-  );
+  const assertEchoSafe = async (url, method, message) => {
+    await app.api(url, { method, body: '{}' });
+    assert.strictEqual(apiOptions.headers['X-New-Monday-Client-Id'], app.clientSessionId, message);
+  };
+  const assertEchoRequired = async (url, method, message) => {
+    await app.api(url, { method, body: '{}' });
+    assert.strictEqual(apiOptions.headers['X-New-Monday-Client-Id'], undefined, message);
+  };
 
-  await app.api('/api/items/item-1', { method: 'PATCH', body: '{}' });
-  assert.strictEqual(
-    apiOptions.headers['X-New-Monday-Client-Id'],
-    undefined,
-    'generic mutations must keep their SSE echo until their local side-effects are explicitly proven echo-safe'
+  await assertEchoSafe(
+    '/api/items/item-1/columns/status/conditional',
+    'PATCH',
+    'conditional cell PATCH is echo-safe'
+  );
+  await assertEchoSafe('/api/items', 'POST', 'item creation is canonical in its local response');
+  await assertEchoSafe('/api/items/item-1/move', 'POST', 'item move only mutates the returned item');
+  await assertEchoSafe('/api/items/item-1/archive', 'POST', 'item archive only mutates the returned item');
+  await assertEchoSafe('/api/items/item-1/unarchive', 'POST', 'item unarchive only mutates the returned item');
+  await assertEchoSafe('/api/items/item-1/restore', 'POST', 'item restore only mutates the returned item');
+  await assertEchoSafe('/api/items/item-1', 'DELETE', 'moving an item to trash only mutates that item');
+
+  await assertEchoRequired(
+    '/api/items/item-1',
+    'PATCH',
+    'generic item PATCH keeps its echo until all call sites are proven rerender-safe'
+  );
+  await assertEchoRequired(
+    '/api/items/item-1/duplicate',
+    'POST',
+    'duplicate must keep its echo because the server also shifts sibling ordering'
+  );
+  await assertEchoRequired(
+    '/api/item-ordering/reorder',
+    'POST',
+    'ordering remains echo-required because it mutates multiple items'
   );
 
   app.connectRealtime();
